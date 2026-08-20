@@ -1,0 +1,27 @@
+# API Information
+
+
+main: {
+  kit: {
+    info: {
+      description: "Create, read, and update Notion pages and databases."
+      security: {
+        in: "header"
+        name: "Authorization"
+        prefix: "Bearer"
+        scheme: "bearerAuth"
+        type: "http"
+      }
+      servers: [
+        {
+          url: "https://api.notion.com/v1"
+        }
+      ]
+      summary: "Create, read, and update Notion pages and databases."
+      title: "Notion Pages and Databases API"
+      version: "1.0.0"
+      website: "https://notion.com"
+    }
+  }
+}
+

@@ -1,0 +1,28 @@
+# Guide
+
+guide: {
+  metrics: count: entity: 2
+  metrics: count: path: 4
+  metrics: count: method: 6
+
+  entity: database: {
+    path: "/databases": {
+      op: create: method: *POST
+    }
+    path: "/databases/{id}": {
+      op: load: method: *GET
+      op: patch: method: *PATCH
+    }
+  }
+
+  entity: page: {
+    path: "/pages": {
+      op: create: method: *POST
+    }
+    path: "/pages/{id}": {
+      op: load: method: *GET
+      op: patch: method: *PATCH
+    }
+  }
+
+}

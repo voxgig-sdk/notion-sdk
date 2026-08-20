@@ -1,0 +1,59 @@
+# BasicDatabaseFlow
+
+main: kit: flow: BasicDatabaseFlow:
+{
+  entity: "database",
+  kind: "basic",
+  name: "BasicDatabaseFlow",
+  step: [
+    {
+      input: {
+        ref: "database_ref01"
+      }
+
+      op: "create"
+    }
+
+    {
+      input: {
+        ref: "database_ref01",
+        srcdatavar: "database_ref01_data",
+        suffix: "_up0",
+        textfield: "created_time"
+      }
+
+      op: "update",
+      spec: [
+        {
+          apply: "TextFieldMark",
+          def: {
+            mark: "Mark01-database_ref01"
+          }
+        }
+      ]
+    }
+
+    {
+      input: {
+        ref: "database_ref01",
+        srcdatavar: "database_ref01_data",
+        suffix: "_dt0"
+      }
+
+      match: {
+        id: "database01"
+      }
+
+      op: "load",
+      valid: [
+        {
+          apply: "TextFieldMark",
+          def: {
+            mark: "Mark01-database_ref01"
+          }
+        }
+      ]
+    }
+  ],
+  "key$": "BasicDatabaseFlow"
+}

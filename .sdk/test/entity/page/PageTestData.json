@@ -1,0 +1,45 @@
+{
+  "existing": {
+    "page": {
+      "PAGE00": {
+        "archived": true,
+        "created_time": "s47",
+        "id": "PAGE00",
+        "last_edited_time": "s49",
+        "object": "s4a",
+        "parent": {},
+        "properties": {}
+      },
+      "PAGE01": {
+        "archived": true,
+        "created_time": "s8d",
+        "id": "PAGE01",
+        "last_edited_time": "s8f",
+        "object": "s90",
+        "parent": {},
+        "properties": {}
+      },
+      "PAGE02": {
+        "archived": true,
+        "created_time": "sd3",
+        "id": "PAGE02",
+        "last_edited_time": "sd5",
+        "object": "sd6",
+        "parent": {},
+        "properties": {}
+      }
+    }
+  },
+  "new": {
+    "page": {
+      "page_ref01": {
+        "archived": true,
+        "created_time": "s119",
+        "last_edited_time": "s11b",
+        "object": "s11c",
+        "parent": {},
+        "properties": {}
+      }
+    }
+  }
+}

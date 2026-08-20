@@ -1,0 +1,46 @@
+
+# Model definitions.
+@"@voxgig/apidef/model/apidef.aontu"
+@"@voxgig/sdkgen/model/sdkgen.aontu"
+
+
+# SDK Details.
+name: 'notion'
+origin: 'voxgig-sdk'
+def: 'notion-pages-databases-only.json'
+
+# 'databases' naively strips a trailing 's' to depluralize, giving
+# 'databas' instead of 'database'. Same issue as airtable's 'bases'.
+main: custom: plurals: databases: 'database'
+
+
+# API Information
+@"api/api-info.aontu"
+
+
+# SDK Configuration.
+@"config.aontu"
+
+
+# SDK Entities
+@"entity/entity-index.aontu"
+
+
+# SDK Features.
+@"feature/feature-index.aontu"
+ 
+
+# SDK Targets.
+@"target/target-index.aontu"
+
+
+# Operation workflows.
+@"flow/flow-index.aontu"
+
+
+# Seneca provider plugin generates out-of-tree into the sibling repo.
+main: kit: target: 'seneca-provider': output: {
+  path: '../../seneca/notion-provider'
+  sdkrel: '../../voxgig-sdk/notion-sdk'
+}
+

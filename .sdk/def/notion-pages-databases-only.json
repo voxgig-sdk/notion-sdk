@@ -1,0 +1,246 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Notion Pages and Databases API",
+    "version": "1.0.0",
+    "description": "Create, read, and update Notion pages and databases."
+  },
+  "servers": [
+    { "url": "https://api.notion.com/v1" }
+  ],
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "paths": {
+    "/pages": {
+      "post": {
+        "operationId": "createPage",
+        "summary": "Create a page",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PageInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The created page",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pages/{id}": {
+      "get": {
+        "operationId": "getPage",
+        "summary": "Retrieve a page",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested page",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updatePage",
+        "summary": "Update a page",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PageUpdateInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated page",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/databases": {
+      "post": {
+        "operationId": "createDatabase",
+        "summary": "Create a database",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DatabaseInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The created database",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Database" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/databases/{id}": {
+      "get": {
+        "operationId": "getDatabase",
+        "summary": "Retrieve a database",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested database",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Database" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateDatabase",
+        "summary": "Update a database",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DatabaseUpdateInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated database",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Database" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "PageInput": {
+        "type": "object",
+        "required": ["parent", "properties"],
+        "properties": {
+          "parent": {
+            "type": "object",
+            "properties": {
+              "database_id": { "type": "string" }
+            }
+          },
+          "properties": { "type": "object" }
+        }
+      },
+      "PageUpdateInput": {
+        "type": "object",
+        "properties": {
+          "properties": { "type": "object" },
+          "archived": { "type": "boolean" }
+        }
+      },
+      "Page": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "object": { "type": "string" },
+          "created_time": { "type": "string" },
+          "last_edited_time": { "type": "string" },
+          "archived": { "type": "boolean" },
+          "properties": { "type": "object" },
+          "parent": {
+            "type": "object",
+            "properties": {
+              "database_id": { "type": "string" }
+            }
+          }
+        }
+      },
+      "DatabaseInput": {
+        "type": "object",
+        "required": ["parent", "title", "properties"],
+        "properties": {
+          "parent": {
+            "type": "object",
+            "properties": {
+              "page_id": { "type": "string" }
+            }
+          },
+          "title": {
+            "type": "array",
+            "items": { "type": "object" }
+          },
+          "properties": { "type": "object" }
+        }
+      },
+      "DatabaseUpdateInput": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "array",
+            "items": { "type": "object" }
+          },
+          "properties": { "type": "object" }
+        }
+      },
+      "Database": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "object": { "type": "string" },
+          "created_time": { "type": "string" },
+          "last_edited_time": { "type": "string" },
+          "title": {
+            "type": "array",
+            "items": { "type": "object" }
+          },
+          "properties": { "type": "object" },
+          "parent": {
+            "type": "object",
+            "properties": {
+              "page_id": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

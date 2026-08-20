@@ -1,0 +1,59 @@
+# BasicDatabasFlow
+
+main: kit: flow: BasicDatabasFlow:
+{
+  entity: "databas",
+  kind: "basic",
+  name: "BasicDatabasFlow",
+  step: [
+    {
+      input: {
+        ref: "databas_ref01"
+      }
+
+      op: "create"
+    }
+
+    {
+      input: {
+        ref: "databas_ref01",
+        srcdatavar: "databas_ref01_data",
+        suffix: "_up0",
+        textfield: "created_time"
+      }
+
+      op: "update",
+      spec: [
+        {
+          apply: "TextFieldMark",
+          def: {
+            mark: "Mark01-databas_ref01"
+          }
+        }
+      ]
+    }
+
+    {
+      input: {
+        ref: "databas_ref01",
+        srcdatavar: "databas_ref01_data",
+        suffix: "_dt0"
+      }
+
+      match: {
+        id: "databas01"
+      }
+
+      op: "load",
+      valid: [
+        {
+          apply: "TextFieldMark",
+          def: {
+            mark: "Mark01-databas_ref01"
+          }
+        }
+      ]
+    }
+  ],
+  "key$": "BasicDatabasFlow"
+}
