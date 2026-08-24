@@ -1,0 +1,70 @@
+<?php
+declare(strict_types=1);
+
+// Notion SDK utility registration
+
+require_once __DIR__ . '/../core/UtilityType.php';
+require_once __DIR__ . '/Clean.php';
+require_once __DIR__ . '/Done.php';
+require_once __DIR__ . '/MakeError.php';
+require_once __DIR__ . '/FeatureAdd.php';
+require_once __DIR__ . '/FeatureHook.php';
+require_once __DIR__ . '/FeatureInit.php';
+require_once __DIR__ . '/Fetcher.php';
+require_once __DIR__ . '/MakeFetchDef.php';
+require_once __DIR__ . '/MakeContext.php';
+require_once __DIR__ . '/MakeOptions.php';
+require_once __DIR__ . '/MakeRequest.php';
+require_once __DIR__ . '/MakeResponse.php';
+require_once __DIR__ . '/MakeResult.php';
+require_once __DIR__ . '/MakePoint.php';
+require_once __DIR__ . '/MakeSpec.php';
+require_once __DIR__ . '/MakeUrl.php';
+require_once __DIR__ . '/Param.php';
+require_once __DIR__ . '/PrepareAuth.php';
+require_once __DIR__ . '/PrepareBody.php';
+require_once __DIR__ . '/Graphql.php';
+require_once __DIR__ . '/PrepareHeaders.php';
+require_once __DIR__ . '/PrepareMethod.php';
+require_once __DIR__ . '/PrepareParams.php';
+require_once __DIR__ . '/PreparePath.php';
+require_once __DIR__ . '/PrepareQuery.php';
+require_once __DIR__ . '/ResultBasic.php';
+require_once __DIR__ . '/ResultBody.php';
+require_once __DIR__ . '/ResultHeaders.php';
+require_once __DIR__ . '/TransformRequest.php';
+require_once __DIR__ . '/TransformResponse.php';
+
+NotionUtility::setRegistrar(function (NotionUtility $u): void {
+    $u->clean = [NotionClean::class, 'call'];
+    $u->done = [NotionDone::class, 'call'];
+    $u->make_error = [NotionMakeError::class, 'call'];
+    $u->feature_add = [NotionFeatureAdd::class, 'call'];
+    $u->feature_hook = [NotionFeatureHook::class, 'call'];
+    $u->feature_init = [NotionFeatureInit::class, 'call'];
+    $u->fetcher = [NotionFetcher::class, 'call'];
+    $u->make_fetch_def = [NotionMakeFetchDef::class, 'call'];
+    $u->make_context = [NotionMakeContext::class, 'call'];
+    $u->make_options = [NotionMakeOptions::class, 'call'];
+    $u->make_request = [NotionMakeRequest::class, 'call'];
+    $u->make_response = [NotionMakeResponse::class, 'call'];
+    $u->make_result = [NotionMakeResult::class, 'call'];
+    $u->make_point = [NotionMakePoint::class, 'call'];
+    $u->make_spec = [NotionMakeSpec::class, 'call'];
+    $u->make_url = [NotionMakeUrl::class, 'call'];
+    $u->param = [NotionParam::class, 'call'];
+    $u->prepare_auth = [NotionPrepareAuth::class, 'call'];
+    $u->prepare_body = [NotionPrepareBody::class, 'call'];
+    $u->prepare_headers = [NotionPrepareHeaders::class, 'call'];
+    $u->prepare_method = [NotionPrepareMethod::class, 'call'];
+    $u->prepare_params = [NotionPrepareParams::class, 'call'];
+    $u->prepare_path = [NotionPreparePath::class, 'call'];
+    $u->prepare_query = [NotionPrepareQuery::class, 'call'];
+    $u->graphql_body = [NotionGraphql::class, 'body'];
+    $u->graphql_errors = [NotionGraphql::class, 'errors'];
+    $u->result_basic = [NotionResultBasic::class, 'call'];
+    $u->result_body = [NotionResultBody::class, 'call'];
+    $u->result_headers = [NotionResultHeaders::class, 'call'];
+    $u->transform_request = [NotionTransformRequest::class, 'call'];
+    $u->transform_response = [NotionTransformResponse::class, 'call'];
+});

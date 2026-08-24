@@ -10,6 +10,8 @@ This is an unofficial SDK for the Notion Pages and Databases public API, generat
 
 Learn more about Voxgig SDKs at [voxgig.com/sdk](https://voxgig.com/sdk/).
 
+> TypeScript, Python, PHP, Golang, Lua, JavaScript SDKs, a CLI with an interactive REPL, and an MCP server for AI agents — all generated from one OpenAPI spec by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen).
+
 ## Entities, not endpoints
 
 This SDK exposes the API as a small set of **semantic entities** — Database and Page — that you
@@ -49,11 +51,62 @@ const database = await client.Database().load({ id: 'test01' })
 console.log(database)
 ```
 
+### Python
+
+```python
+client = NotionSDK.test()
+database = client.Database().load({"id": "test01"})
+print(database)
+```
+
+### PHP
+
+```php
+// Seed fixture data so offline calls resolve without a live server.
+$client = NotionSDK::test([
+    "entity" => ["database" => ["test01" => ["id" => "test01"]]],
+]);
+$database = $client->Database()->load(["id" => "test01"]);
+```
+
+### Golang
+
+```go
+client := sdk.Test()
+result, err := client.Database(nil).Load(
+    map[string]any{"id": "test01"}, nil,
+)
+```
+
+### Lua
+
+```lua
+local client = sdk.test()
+local result, err = client:Database():load({ id = "test01" })
+```
+
+### JavaScript
+
+```js
+const client = NotionSDK.test()
+const database = await client.Database().load({ id: 'test01' })
+// database is the entity, populated with mock data
+// — call database.data() for the record itself
+console.log(database)
+```
+
 ## Packages
 
 | Language | Package | Install |
 | --- | --- | --- |
 | TypeScript | `@voxgig-sdk/notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/releases) |
+| Python | `voxgig-sdk-notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/releases) |
+| PHP | `voxgig-sdk/notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/releases) |
+| Golang | `github.com/voxgig-sdk/notion-sdk/go` | `go get github.com/voxgig-sdk/notion-sdk/go@latest` |
+| Lua | `voxgig-sdk-notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/releases) |
+| JavaScript | `@voxgig-sdk/notion-js` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/releases) |
+| Go CLI | `github.com/voxgig-sdk/notion-sdk/go-cli` | `go install github.com/voxgig-sdk/notion-sdk/go-cli/cmd/notion@latest` |
+| Go MCP server | `github.com/voxgig-sdk/notion-sdk/go-mcp` | `go get github.com/voxgig-sdk/notion-sdk/go-mcp@latest` |
 
 ## Quickstart
 
@@ -77,7 +130,31 @@ See the [TypeScript README](ts/README.md) for the full guide.
 
 | Surface | Path |
 | --- | --- |
-| **SDK** (TypeScript) | `ts/` |
+| **SDK** (TypeScript, Python, PHP, Golang, Lua, JavaScript) | `ts/` `py/` `php/` `go/` `lua/` `js/` |
+| **CLI** | `go-cli/` |
+| **MCP server** | `go-mcp/` |
+
+## Use it from an AI agent (MCP)
+
+The generated MCP server exposes every operation in this SDK as an
+[MCP](https://modelcontextprotocol.io) tool that Claude, Cursor or Cline
+can call directly. Build and register it:
+
+```bash
+cd go-mcp && go build -o notion-mcp .
+```
+
+Then add it to your agent's MCP config (Claude Desktop, Cursor, etc.):
+
+```json
+{
+  "mcpServers": {
+    "notion": {
+      "command": "/abs/path/to/notion-mcp"
+    }
+  }
+}
+```
 
 ## Entities
 
@@ -90,6 +167,83 @@ The API exposes 2 entities:
 
 The operations available across these entities are **load**, **create**, **update** — see each entity's
 own list above for exactly which it supports.
+
+## Quickstart in other languages
+
+### Python
+
+```python
+import os
+from notion_sdk import NotionSDK
+
+client = NotionSDK({
+    "apikey": os.environ.get("NOTION_APIKEY"),
+})
+
+
+# Load a specific database (returns the record, raises on error)
+database = client.Database().load({"id": "example_id"})
+print(database)
+```
+
+### PHP
+
+```php
+<?php
+require_once 'notion_sdk.php';
+
+$client = new NotionSDK([
+    "apikey" => getenv("NOTION_APIKEY"),
+]);
+
+
+// Load a specific database (returns the ENTITY; call data_get() for the record; throws on error)
+$database = $client->Database()->load(["id" => "example_id"]);
+print_r($database);
+```
+
+### Golang
+
+```go
+import sdk "github.com/voxgig-sdk/notion-sdk/go"
+
+client := sdk.NewNotionSDK(map[string]any{
+    "apikey": os.Getenv("NOTION_APIKEY"),
+})
+
+// Load database data
+database, err := client.Database(nil).Load(map[string]any{"id": "example_id"}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(database)
+```
+
+### Lua
+
+```lua
+local sdk = require("notion_sdk")
+
+local client = sdk.new({
+  apikey = os.getenv("NOTION_APIKEY"),
+})
+
+
+-- Load a specific database
+local database, err = client:Database():load({ id = "example_id" })
+print(database)
+```
+
+### JavaScript
+
+```js
+const { NotionSDK } = require('@voxgig-sdk/notion-js')
+
+const client = new NotionSDK({
+  apikey: process.env.NOTION_APIKEY,
+})
+
+```
 
 ## Direct and prepare
 
@@ -109,6 +263,59 @@ When the entity interface does not cover an endpoint, use `direct`:
 
 **TypeScript:**
 ```ts
+const result = await client.direct({
+  path: '/api/resource/{id}',
+  method: 'GET',
+  params: { id: 'example' },
+})
+if (result instanceof Error) {
+  throw result
+}
+console.log(result.data)
+```
+
+**Python:**
+```python
+result = client.direct({
+    "path": "/api/resource/{id}",
+    "method": "GET",
+    "params": {"id": "example"},
+})
+```
+
+**PHP:**
+```php
+$result = $client->direct([
+    "path" => "/api/resource/{id}",
+    "method" => "GET",
+    "params" => ["id" => "example"],
+]);
+```
+
+**Go:**
+```go
+result, err := client.Direct(map[string]any{
+    "path":   "/api/resource/{id}",
+    "method": "GET",
+    "params": map[string]any{"id": "example"},
+})
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
+```
+
+**Lua:**
+```lua
+local result, err = client:direct({
+  path = "/api/resource/{id}",
+  method = "GET",
+  params = { id = "example" },
+})
+```
+
+**JavaScript:**
+```js
 const result = await client.direct({
   path: '/api/resource/{id}',
   method: 'GET',
@@ -148,6 +355,11 @@ Pass custom features via the `extend` option at construction time.
 ## Per-language documentation
 
 - [TypeScript](ts/README.md)
+- [Python](py/README.md)
+- [PHP](php/README.md)
+- [Golang](go/README.md)
+- [Lua](lua/README.md)
+- [JavaScript](js/README.md)
 
 ## Upstream API
 
