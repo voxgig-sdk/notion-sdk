@@ -45,7 +45,8 @@ class DatabaseEntity extends NotionEntityBase<Database> {
     const {
       makeContext,
       done,
-      error,
+      // The registry name is `makeError`; `error` is the local alias.
+      makeError: error,
       featureHook,
       makePoint,
       makeRequest,
@@ -166,7 +167,8 @@ class DatabaseEntity extends NotionEntityBase<Database> {
     const {
       makeContext,
       done,
-      error,
+      // The registry name is `makeError`; `error` is the local alias.
+      makeError: error,
       featureHook,
       makePoint,
       makeRequest,
@@ -283,7 +285,8 @@ class DatabaseEntity extends NotionEntityBase<Database> {
     const {
       makeContext,
       done,
-      error,
+      // The registry name is `makeError`; `error` is the local alias.
+      makeError: error,
       featureHook,
       makePoint,
       makeRequest,
