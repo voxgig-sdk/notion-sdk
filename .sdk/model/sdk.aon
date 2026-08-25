@@ -9,10 +9,6 @@ name: 'notion'
 origin: 'voxgig-sdk'
 def: 'notion-pages-databases-only.json'
 
-# 'databases' naively strips a trailing 's' to depluralize, giving
-# 'databas' instead of 'database'. Same issue as airtable's 'bases'.
-main: custom: plurals: databases: 'database'
-
 
 # API Information
 @"api/api-info.aon"
@@ -38,9 +34,8 @@ main: custom: plurals: databases: 'database'
 @"flow/flow-index.aon"
 
 
-# Seneca provider plugin generates out-of-tree into the sibling repo.
-main: kit: target: 'seneca-provider': output: {
-  path: '../../seneca/notion-provider'
-  sdkrel: '../../voxgig-sdk/notion-sdk'
-}
-
+# Project overlay — user-owned, created once and never overwritten.
+#
+# LAST, deliberately: it may refine main.kit.target.<t>, and a target can only
+# be refined after target-index.aon has defined it.
+@"project.aon"

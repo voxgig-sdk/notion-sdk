@@ -1,12 +1,11 @@
 # SDK Targets.
 
 
-@"ts.aon"
-@"seneca-provider.aon"
-@"py.aon"
-@"php.aon"
 @"go.aon"
 @"go-cli.aon"
 @"go-mcp.aon"
 @"js.aon"
 @"lua.aon"
+@"php.aon"
+@"py.aon"
+@"ts.aon"
