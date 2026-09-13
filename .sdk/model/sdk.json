@@ -1,6 +1,15 @@
 {
+  "NAME": "NOTION",
+  "Name": "Notion",
   "def": "notion-pages-databases-only.json",
   "main": {
+    "api": {
+      "entity": {},
+      "guide": {}
+    },
+    "custom": {
+      "plurals": {}
+    },
     "def": {
       "desc": ""
     },
@@ -1232,5 +1241,8 @@
     }
   },
   "name": "notion",
+  "name-": "notion",
+  "name_": "notion",
+  "name__orig": "notion",
   "origin": "voxgig-sdk"
 }
