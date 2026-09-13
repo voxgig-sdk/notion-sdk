@@ -17,7 +17,11 @@ import {
   cmp,
   snakify,
   isAuthActive,
-  jsProp, envName, envToken
+  serverVarEnv,
+  serverVariables,
+  jsProp, envName, envToken,
+  jsKey,
+  pointParts,
 } from '@voxgig/sdkgen'
 
 
@@ -41,12 +45,31 @@ const TestDirect = cmp(function TestDirect(props: any) {
 
   const authActive = isAuthActive(model)
   const apikeyEnvEntry = authActive
-    ? `\n    '${PROJECTNAME}_APIKEY': 'NONE',`
+    ? `\n    '${PROJECTNAME}_APIKEY': '',`
     : ''
   const apikeyLiveField = authActive
     ? `
       apikey: env.${PROJECTNAME}_APIKEY,`
     : ''
+
+  // A templated server URL (OpenAPI server variables) makes a LIVE client
+  // impossible to construct without values: makeOptions raises rather than
+  // request a URL with a literal `{account_id}` in it. Taken from the
+  // environment, the same way the apikey is.
+  //
+  // Keys are quoted and the env read is bracketed via jsKey/jsProp: a server
+  // variable name is spec-derived and need not be a JS identifier — the URL
+  // grammar admits a leading digit ({2fa}), and a declared-but-unreferenced
+  // variable ({edge-zone}) is not constrained at all. Bare `name:` and
+  // `env.PROJ_SERVER_EDGE-ZONE` are both syntax errors.
+  const svars = serverVariables(model)
+  const serverEnvEntry = svars
+    .map((v: any) => `\n    '${serverVarEnv(PROJECTNAME, v.name)}': ${JSON.stringify(v.dflt)},`).join('')
+  const serverLiveField = 0 === svars.length ? '' : `
+      server: {${svars
+      .map((v: any) => `
+        ${jsKey(v.name)}: ${jsProp('env', serverVarEnv(PROJECTNAME, v.name))},`).join('')}
+      },`
 
   const opnames = Object.keys(entity.op || {})
   const hasLoad = opnames.includes('load')
@@ -78,14 +101,17 @@ function directSetup(mockres) {
 
   const env = envOverride({
     '${entidEnvVar}': {},
-    '${PROJECTNAME}_TEST_LIVE': 'FALSE',${apikeyEnvEntry}
+    '${PROJECTNAME}_TEST_LIVE': 'FALSE',${apikeyEnvEntry}${serverEnvEntry}
   })
 
   const live = 'TRUE' === env.${PROJECTNAME}_TEST_LIVE
 
   if (live) {
-    const client = new ${nom(model.const, 'Name')}SDK({${apikeyLiveField}
-    })
+    // Merged so the generated fields win: sdk-test-control.json's
+    // test.client.options adds to the live client, it does not redirect it.
+    const client = new ${nom(model.const, 'Name')}SDK(
+      Object.assign({}, liveClientOptions(), {${apikeyLiveField}${serverLiveField}
+      }))
 
     let idmap = env['${entidEnvVar}']
     if ('string' === typeof idmap && idmap.startsWith('{')) {
@@ -141,14 +167,19 @@ function generateDirectLoad(model: Model, entity: ModelEntity) {
     return
   }
 
+  if ('graphql' === (loadPoint as any).kind) {
+    generateDirectGraphqlJs('load', entity, loadPoint)
+    return
+  }
+
   const loadParams = loadPoint.args?.params || []
-  const loadPath = normalizePathParams(loadPoint.parts || [], loadParams, loadPoint.rename?.param)
+  const loadPath = normalizePathParams(pointParts(loadPoint), loadParams, loadPoint.rename?.param)
 
   // Get list info for live mode bootstrapping
   const listOp = entity.op?.list
   const listPoint = listOp?.points?.[0]
   const listParams = listPoint?.args?.params || []
-  const listPath = listPoint ? normalizePathParams(listPoint.parts || [], listParams, listPoint.rename?.param) : ''
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listParams, listPoint.rename?.param) : ''
   const hasList = null != listPoint
 
   // Ancestor params (not 'id') for live mode
@@ -238,8 +269,13 @@ function generateDirectList(model: Model, entity: ModelEntity) {
     return
   }
 
+  if ('graphql' === (listPoint as any).kind) {
+    generateDirectGraphqlJs('list', entity, listPoint)
+    return
+  }
+
   const listParams = listPoint.args?.params || []
-  const listPath = normalizePathParams(listPoint.parts || [], listParams, listPoint.rename?.param)
+  const listPath = normalizePathParams(pointParts(listPoint), listParams, listPoint.rename?.param)
 
   // Build live params
   const liveParams = listParams.map((p: any) => {
@@ -292,6 +328,58 @@ ${paramsBlock}
       assert(calls.length === 1)
       assert(calls[0].init.method === 'GET')
 ${paramAsserts}    }
+  })
+`)
+}
+
+
+// GraphQL-backed op needs POST+body, not a REST-shaped GET+params direct()
+// call — reuse apidef's own point.graphql.doc via the SDK's graphql() hatch.
+// Mirrors TestDirect_ts.ts's generateDirectGraphql.
+function generateDirectGraphqlJs(
+  opname: 'load' | 'list',
+  entity: ModelEntity,
+  point: any,
+) {
+  const doc: string = point.graphql.doc
+  const vars: any[] = point.graphql.vars || []
+
+  const mockVarLines = vars.map((v: any, i: number) =>
+    `      variables[${JSON.stringify(v.name)}] = 'direct0${i + 1}'`).join('\n')
+
+  const liveVarLines = vars.map((v: any) => {
+    const from = v.from || v.name
+    const key = ('id' === from ? entity.name : from.replace(/_id$/, '')) + '01'
+    return `      variables[${JSON.stringify(v.name)}] = setup.idmap['${key}']`
+  }).join('\n')
+
+  // Asserted against the OUTGOING request body, not the mocked response —
+  // response-shape correctness is the entity-level tests' job.
+  const varAsserts = vars.map((_v: any, i: number) =>
+    '      assert(calls[0].init.body.includes(\'direct0' + (i + 1) + '\'))\n').join('')
+
+  Content(`
+  test('direct-${opname}-${entity.name}', async () => {
+    const setup = directSetup()
+    const { client, calls } = setup
+
+    const variables = {}
+    if (setup.live) {
+${liveVarLines || '      // no variables'}
+    } else {
+${mockVarLines || '      // no variables'}
+    }
+
+    const result = await client.graphql(${JSON.stringify(doc)}, variables)
+
+    assert(result.ok === true)
+    assert(result.status === 200)
+    assert(null != result.data)
+
+    if (!setup.live) {
+      assert(calls.length === 1)
+      assert(calls[0].init.method === 'POST')
+${varAsserts}    }
   })
 `)
 }

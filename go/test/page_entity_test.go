@@ -53,7 +53,7 @@ func TestPageEntity(t *testing.T) {
 		// CREATE
 		pageRef01Ent := client.Page(nil)
 		pageRef01Data := core.ToMapAny(vs.GetProp(
-			vs.GetPath([]any{"new", "page"}, setup.data), "page_ref01"))
+			vs.GetPath(setup.data, []any{"new", "page"}), "page_ref01"))
 
 		pageRef01DataResult, err := pageRef01Ent.Create(pageRef01Data, nil)
 		if err != nil {
@@ -134,7 +134,7 @@ func pageBasicSetup(extra map[string]any) *entityTestSetup {
 	client := sdk.TestSDK(options, extra)
 
 	// Generate idmap via transform, matching TS pattern.
-	idmap := vs.Transform(
+	idmap, _ := vs.Transform(
 		[]any{"page01", "page02", "page03"},
 		map[string]any{
 			"`$PACK`": []any{"", map[string]any{
@@ -154,7 +154,7 @@ func pageBasicSetup(extra map[string]any) *entityTestSetup {
 		"NOTION_TEST_PAGE_ENTID": idmap,
 		"NOTION_TEST_LIVE":      "FALSE",
 		"NOTION_TEST_EXPLAIN":   "FALSE",
-		"NOTION_APIKEY":         "NONE",
+		"NOTION_APIKEY":         "",
 	})
 
 	idmapResolved := core.ToMapAny(env["NOTION_TEST_PAGE_ENTID"])
@@ -163,11 +163,23 @@ func pageBasicSetup(extra map[string]any) *entityTestSetup {
 	}
 
 	if env["NOTION_TEST_LIVE"] == "TRUE" {
+		// An empty map, not a nil one: Merge returns nil when its last entry
+		// is nil, and BasicSetup is normally called with no extras - so a
+		// bare nil silently discarded the apikey and server values below.
+		extraOpts := extra
+		if extraOpts == nil {
+			extraOpts = map[string]any{}
+		}
+
 		mergedOpts := vs.Merge([]any{
+			// liveClientOptions() FIRST, so the generated fields below win:
+			// sdk-test-control.json's test.client.options adds to the live
+			// client, it does not redirect it.
+			liveClientOptions(),
 			map[string]any{
 				"apikey": env["NOTION_APIKEY"],
 			},
-			extra,
+			extraOpts,
 		})
 		client = sdk.NewNotionSDK(core.ToMapAny(mergedOpts))
 	}

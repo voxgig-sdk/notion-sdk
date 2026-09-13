@@ -108,6 +108,10 @@ class NotionConfig
               'type' => '`$ARRAY`',
             ],
           ],
+          'id' => [
+            'field' => 'id',
+            'name' => 'id',
+          ],
           'name' => 'database',
           'op' => [
             'create' => [
@@ -119,13 +123,18 @@ class NotionConfig
                   'kind' => 'http',
                   'method' => 'POST',
                   'orig' => '/databases',
-                  'parts' => [
-                    'databases',
+                  'segments' => [
+                    [
+                      'lit' => 'databases',
+                    ],
                   ],
                   'select' => [],
                   'transform' => [
                     'req' => '`reqdata`',
                     'res' => '`body`',
+                  ],
+                  'parts' => [
+                    'databases',
                   ],
                 ],
               ],
@@ -149,9 +158,13 @@ class NotionConfig
                   'kind' => 'http',
                   'method' => 'GET',
                   'orig' => '/databases/{id}',
-                  'parts' => [
-                    'databases',
-                    '{id}',
+                  'segments' => [
+                    [
+                      'lit' => 'databases',
+                    ],
+                    [
+                      'var' => 'id',
+                    ],
                   ],
                   'select' => [
                     'exist' => [
@@ -161,6 +174,10 @@ class NotionConfig
                   'transform' => [
                     'req' => '`reqdata`',
                     'res' => '`body`',
+                  ],
+                  'parts' => [
+                    'databases',
+                    '{id}',
                   ],
                 ],
               ],
@@ -184,9 +201,13 @@ class NotionConfig
                   'kind' => 'http',
                   'method' => 'PATCH',
                   'orig' => '/databases/{id}',
-                  'parts' => [
-                    'databases',
-                    '{id}',
+                  'segments' => [
+                    [
+                      'lit' => 'databases',
+                    ],
+                    [
+                      'var' => 'id',
+                    ],
                   ],
                   'select' => [
                     'exist' => [
@@ -196,6 +217,10 @@ class NotionConfig
                   'transform' => [
                     'req' => '`reqdata`',
                     'res' => '`body`',
+                  ],
+                  'parts' => [
+                    'databases',
+                    '{id}',
                   ],
                 ],
               ],
@@ -248,6 +273,10 @@ class NotionConfig
               'type' => '`$OBJECT`',
             ],
           ],
+          'id' => [
+            'field' => 'id',
+            'name' => 'id',
+          ],
           'name' => 'page',
           'op' => [
             'create' => [
@@ -259,13 +288,18 @@ class NotionConfig
                   'kind' => 'http',
                   'method' => 'POST',
                   'orig' => '/pages',
-                  'parts' => [
-                    'pages',
+                  'segments' => [
+                    [
+                      'lit' => 'pages',
+                    ],
                   ],
                   'select' => [],
                   'transform' => [
                     'req' => '`reqdata`',
                     'res' => '`body`',
+                  ],
+                  'parts' => [
+                    'pages',
                   ],
                 ],
               ],
@@ -289,9 +323,13 @@ class NotionConfig
                   'kind' => 'http',
                   'method' => 'GET',
                   'orig' => '/pages/{id}',
-                  'parts' => [
-                    'pages',
-                    '{id}',
+                  'segments' => [
+                    [
+                      'lit' => 'pages',
+                    ],
+                    [
+                      'var' => 'id',
+                    ],
                   ],
                   'select' => [
                     'exist' => [
@@ -301,6 +339,10 @@ class NotionConfig
                   'transform' => [
                     'req' => '`reqdata`',
                     'res' => '`body`',
+                  ],
+                  'parts' => [
+                    'pages',
+                    '{id}',
                   ],
                 ],
               ],
@@ -324,9 +366,13 @@ class NotionConfig
                   'kind' => 'http',
                   'method' => 'PATCH',
                   'orig' => '/pages/{id}',
-                  'parts' => [
-                    'pages',
-                    '{id}',
+                  'segments' => [
+                    [
+                      'lit' => 'pages',
+                    ],
+                    [
+                      'var' => 'id',
+                    ],
                   ],
                   'select' => [
                     'exist' => [
@@ -336,6 +382,10 @@ class NotionConfig
                   'transform' => [
                     'req' => '`reqdata`',
                     'res' => '`body`',
+                  ],
+                  'parts' => [
+                    'pages',
+                    '{id}',
                   ],
                 ],
               ],

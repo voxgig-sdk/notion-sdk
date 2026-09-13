@@ -1,10 +1,18 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.config = void 0;
+exports.FEATURE_PLUGINS = exports.config = void 0;
 const TestFeature_1 = require("./feature/test/TestFeature");
 const FEATURE_CLASS = {
     test: TestFeature_1.TestFeature,
 };
+// Per-feature plugin DEFINITIONS (voxgig/plugin `Definition` values), from
+// the model's active plugin groups. A feature that takes a `plugins` option
+// (secrets over sekreto) reads its own entry; a feature with no plugins has
+// none. Named imports above make each definition statically reachable, so
+// an SDK carries exactly the plugin modules its model selects — the same
+// leanness the old side-effect registry imports bought, without a registry.
+const FEATURE_PLUGINS = {};
+exports.FEATURE_PLUGINS = FEATURE_PLUGINS;
 class Config {
     makeFeature(fn) {
         const fc = FEATURE_CLASS[fn];
@@ -95,6 +103,10 @@ class Config {
                     "type": "`$ARRAY`"
                 }
             ],
+            "id": {
+                "field": "id",
+                "name": "id"
+            },
             "name": "database",
             "op": {
                 "create": {
@@ -106,14 +118,19 @@ class Config {
                             "kind": "http",
                             "method": "POST",
                             "orig": "/databases",
-                            "parts": [
-                                "databases"
+                            "segments": [
+                                {
+                                    "lit": "databases"
+                                }
                             ],
                             "select": {},
                             "transform": {
                                 "req": "`reqdata`",
                                 "res": "`body`"
-                            }
+                            },
+                            "parts": [
+                                "databases"
+                            ]
                         }
                     ]
                 },
@@ -136,9 +153,13 @@ class Config {
                             "kind": "http",
                             "method": "GET",
                             "orig": "/databases/{id}",
-                            "parts": [
-                                "databases",
-                                "{id}"
+                            "segments": [
+                                {
+                                    "lit": "databases"
+                                },
+                                {
+                                    "var": "id"
+                                }
                             ],
                             "select": {
                                 "exist": [
@@ -148,7 +169,11 @@ class Config {
                             "transform": {
                                 "req": "`reqdata`",
                                 "res": "`body`"
-                            }
+                            },
+                            "parts": [
+                                "databases",
+                                "{id}"
+                            ]
                         }
                     ]
                 },
@@ -171,9 +196,13 @@ class Config {
                             "kind": "http",
                             "method": "PATCH",
                             "orig": "/databases/{id}",
-                            "parts": [
-                                "databases",
-                                "{id}"
+                            "segments": [
+                                {
+                                    "lit": "databases"
+                                },
+                                {
+                                    "var": "id"
+                                }
                             ],
                             "select": {
                                 "exist": [
@@ -183,7 +212,11 @@ class Config {
                             "transform": {
                                 "req": "`reqdata`",
                                 "res": "`body`"
-                            }
+                            },
+                            "parts": [
+                                "databases",
+                                "{id}"
+                            ]
                         }
                     ]
                 }
@@ -235,6 +268,10 @@ class Config {
                     "type": "`$OBJECT`"
                 }
             ],
+            "id": {
+                "field": "id",
+                "name": "id"
+            },
             "name": "page",
             "op": {
                 "create": {
@@ -246,14 +283,19 @@ class Config {
                             "kind": "http",
                             "method": "POST",
                             "orig": "/pages",
-                            "parts": [
-                                "pages"
+                            "segments": [
+                                {
+                                    "lit": "pages"
+                                }
                             ],
                             "select": {},
                             "transform": {
                                 "req": "`reqdata`",
                                 "res": "`body`"
-                            }
+                            },
+                            "parts": [
+                                "pages"
+                            ]
                         }
                     ]
                 },
@@ -276,9 +318,13 @@ class Config {
                             "kind": "http",
                             "method": "GET",
                             "orig": "/pages/{id}",
-                            "parts": [
-                                "pages",
-                                "{id}"
+                            "segments": [
+                                {
+                                    "lit": "pages"
+                                },
+                                {
+                                    "var": "id"
+                                }
                             ],
                             "select": {
                                 "exist": [
@@ -288,7 +334,11 @@ class Config {
                             "transform": {
                                 "req": "`reqdata`",
                                 "res": "`body`"
-                            }
+                            },
+                            "parts": [
+                                "pages",
+                                "{id}"
+                            ]
                         }
                     ]
                 },
@@ -311,9 +361,13 @@ class Config {
                             "kind": "http",
                             "method": "PATCH",
                             "orig": "/pages/{id}",
-                            "parts": [
-                                "pages",
-                                "{id}"
+                            "segments": [
+                                {
+                                    "lit": "pages"
+                                },
+                                {
+                                    "var": "id"
+                                }
                             ],
                             "select": {
                                 "exist": [
@@ -323,7 +377,11 @@ class Config {
                             "transform": {
                                 "req": "`reqdata`",
                                 "res": "`body`"
-                            }
+                            },
+                            "parts": [
+                                "pages",
+                                "{id}"
+                            ]
                         }
                     ]
                 }

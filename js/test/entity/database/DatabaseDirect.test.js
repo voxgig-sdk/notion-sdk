@@ -2,7 +2,7 @@
 const envlocal = __dirname + '/../../../.env.local'
 require('dotenv').config({ quiet: true, path: [envlocal] })
 
-const { test, describe } = require('node:test')
+const { test, describe, afterEach } = require('node:test')
 const assert = require('node:assert')
 
 
@@ -10,10 +10,16 @@ const { NotionSDK } = require('../../..')
 
 const {
   envOverride,
+  liveClientOptions,
+  liveDelay,
 } = require('../../utility')
 
 
 describe('DatabaseDirect', async () => {
+
+  // Per-test live pacing. Delay is read from sdk-test-control.json's
+  // `test.live.delayMs`; only sleeps when NOTION_TEST_LIVE=TRUE.
+  afterEach(liveDelay('NOTION_TEST_LIVE'))
 
   test('direct-exists', async () => {
     const sdk = new NotionSDK({
@@ -65,15 +71,18 @@ function directSetup(mockres) {
   const env = envOverride({
     'NOTION_TEST_DATABASE_ENTID': {},
     'NOTION_TEST_LIVE': 'FALSE',
-    'NOTION_APIKEY': 'NONE',
+    'NOTION_APIKEY': '',
   })
 
   const live = 'TRUE' === env.NOTION_TEST_LIVE
 
   if (live) {
-    const client = new NotionSDK({
+    // Merged so the generated fields win: sdk-test-control.json's
+    // test.client.options adds to the live client, it does not redirect it.
+    const client = new NotionSDK(
+      Object.assign({}, liveClientOptions(), {
       apikey: env.NOTION_APIKEY,
-    })
+      }))
 
     let idmap = env['NOTION_TEST_DATABASE_ENTID']
     if ('string' === typeof idmap && idmap.startsWith('{')) {

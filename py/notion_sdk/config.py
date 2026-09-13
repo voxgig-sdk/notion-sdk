@@ -1,6 +1,14 @@
 # Notion SDK configuration
 
 
+# The sekreto plugin DEFINITIONS the model selected per feature, imported
+# above by name from the modules the catalogue's active `plugin.def`
+# entries declare. Handed to each feature (secrets builds its Sekreto
+# with them): a provider kind not listed here is unknown to that SDK.
+FEATURE_PLUGINS = {
+}
+
+
 _shared_config = None
 
 
@@ -103,6 +111,10 @@ def make_config():
             "type": "`$ARRAY`",
           },
         ],
+        "id": {
+          "field": "id",
+          "name": "id",
+        },
         "name": "database",
         "op": {
           "create": {
@@ -114,14 +126,19 @@ def make_config():
                 "kind": "http",
                 "method": "POST",
                 "orig": "/databases",
-                "parts": [
-                  "databases",
+                "segments": [
+                  {
+                    "lit": "databases",
+                  },
                 ],
                 "select": {},
                 "transform": {
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "databases",
+                ],
               },
             ],
           },
@@ -144,9 +161,13 @@ def make_config():
                 "kind": "http",
                 "method": "GET",
                 "orig": "/databases/{id}",
-                "parts": [
-                  "databases",
-                  "{id}",
+                "segments": [
+                  {
+                    "lit": "databases",
+                  },
+                  {
+                    "var": "id",
+                  },
                 ],
                 "select": {
                   "exist": [
@@ -157,6 +178,10 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "databases",
+                  "{id}",
+                ],
               },
             ],
           },
@@ -179,9 +204,13 @@ def make_config():
                 "kind": "http",
                 "method": "PATCH",
                 "orig": "/databases/{id}",
-                "parts": [
-                  "databases",
-                  "{id}",
+                "segments": [
+                  {
+                    "lit": "databases",
+                  },
+                  {
+                    "var": "id",
+                  },
                 ],
                 "select": {
                   "exist": [
@@ -192,6 +221,10 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "databases",
+                  "{id}",
+                ],
               },
             ],
           },
@@ -243,6 +276,10 @@ def make_config():
             "type": "`$OBJECT`",
           },
         ],
+        "id": {
+          "field": "id",
+          "name": "id",
+        },
         "name": "page",
         "op": {
           "create": {
@@ -254,14 +291,19 @@ def make_config():
                 "kind": "http",
                 "method": "POST",
                 "orig": "/pages",
-                "parts": [
-                  "pages",
+                "segments": [
+                  {
+                    "lit": "pages",
+                  },
                 ],
                 "select": {},
                 "transform": {
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "pages",
+                ],
               },
             ],
           },
@@ -284,9 +326,13 @@ def make_config():
                 "kind": "http",
                 "method": "GET",
                 "orig": "/pages/{id}",
-                "parts": [
-                  "pages",
-                  "{id}",
+                "segments": [
+                  {
+                    "lit": "pages",
+                  },
+                  {
+                    "var": "id",
+                  },
                 ],
                 "select": {
                   "exist": [
@@ -297,6 +343,10 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "pages",
+                  "{id}",
+                ],
               },
             ],
           },
@@ -319,9 +369,13 @@ def make_config():
                 "kind": "http",
                 "method": "PATCH",
                 "orig": "/pages/{id}",
-                "parts": [
-                  "pages",
-                  "{id}",
+                "segments": [
+                  {
+                    "lit": "pages",
+                  },
+                  {
+                    "var": "id",
+                  },
                 ],
                 "select": {
                   "exist": [
@@ -332,6 +386,10 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "pages",
+                  "{id}",
+                ],
               },
             ],
           },

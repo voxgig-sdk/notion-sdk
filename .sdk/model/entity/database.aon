@@ -73,8 +73,10 @@ main: kit: entity: database: {
         {
           method: "POST"
           orig: "/databases"
-          parts: [
-            "databases"
+          segments: [
+            {
+              lit: "databases"
+            }
           ]
           transform: {
             req: "`reqdata`"
@@ -100,9 +102,13 @@ main: kit: entity: database: {
           }
           method: "GET"
           orig: "/databases/{id}"
-          parts: [
-            "databases"
-            "{id}"
+          segments: [
+            {
+              lit: "databases"
+            }
+            {
+              var: "id"
+            }
           ]
           select: {
             exist: [
@@ -133,9 +139,13 @@ main: kit: entity: database: {
           }
           method: "PATCH"
           orig: "/databases/{id}"
-          parts: [
-            "databases"
-            "{id}"
+          segments: [
+            {
+              lit: "databases"
+            }
+            {
+              var: "id"
+            }
           ]
           select: {
             exist: [

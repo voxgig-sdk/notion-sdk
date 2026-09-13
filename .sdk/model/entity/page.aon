@@ -67,8 +67,10 @@ main: kit: entity: page: {
         {
           method: "POST"
           orig: "/pages"
-          parts: [
-            "pages"
+          segments: [
+            {
+              lit: "pages"
+            }
           ]
           transform: {
             req: "`reqdata`"
@@ -94,9 +96,13 @@ main: kit: entity: page: {
           }
           method: "GET"
           orig: "/pages/{id}"
-          parts: [
-            "pages"
-            "{id}"
+          segments: [
+            {
+              lit: "pages"
+            }
+            {
+              var: "id"
+            }
           ]
           select: {
             exist: [
@@ -127,9 +133,13 @@ main: kit: entity: page: {
           }
           method: "PATCH"
           orig: "/pages/{id}"
-          parts: [
-            "pages"
-            "{id}"
+          segments: [
+            {
+              lit: "pages"
+            }
+            {
+              var: "id"
+            }
           ]
           select: {
             exist: [
