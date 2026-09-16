@@ -6,7 +6,7 @@ Create, read, and update Notion pages and databases.
 
 This guide introduces the API, the client libraries, and the companion tools in this repository. Start with the API capabilities, choose a client for your application, and use the linked reference when you need exact request and response details.
 
-The selected API surface contains 2 entities and 6 HTTP routes. There are 6 SDK targets and 2 companion tools.
+The selected API surface contains 2 entities and 6 HTTP routes. There are 7 SDK targets and 2 companion tools.
 
 An entity groups related API operations. An operation can have several routes with different inputs or authentication requirements. The SDK exposes the entity and its operations using the conventions of the selected language.
 
@@ -59,6 +59,7 @@ Choose the language already used by your application or service. The clients rep
 
 | Client | Repository directory | Distribution |
 | --- | --- | --- |
+| [C](docs/sdks/c.html) | `c/` | Build from source |
 | [Golang](docs/sdks/go.html) | `go/` | Build from source |
 | [JavaScript](docs/sdks/js.html) | `js/` | Build from source |
 | [Lua](docs/sdks/lua.html) | `lua/` | Build from source |

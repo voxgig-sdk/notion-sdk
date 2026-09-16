@@ -10,7 +10,9 @@ This is an unofficial SDK for the Notion Pages and Databases public API, generat
 
 Learn more about Voxgig SDKs at [voxgig.com/sdk](https://voxgig.com/sdk/).
 
-> TypeScript, Python, PHP, Golang, Lua, JavaScript SDKs, a CLI with an interactive REPL, and an MCP server for AI agents — all generated from one OpenAPI spec by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen).
+Full documentation for this SDK: [https://voxgig-sdk.github.io/notion-sdk/](https://voxgig-sdk.github.io/notion-sdk/)
+
+> TypeScript, Python, PHP, Golang, Lua, C, JavaScript SDKs, a CLI with an interactive REPL, and an MCP server for AI agents — all generated from one OpenAPI spec by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen).
 
 > **Features:** `debug`, `idempotency`, `metrics`, `paging`, `ratelimit`, `retry`, `test`, `timeout` — opt-in,
 > inactive until switched on, and configured per client. See the Features
@@ -89,6 +91,18 @@ local client = sdk.test()
 local result, err = client:Database():load({ id = "test01" })
 ```
 
+### C
+
+```c
+#include "core/api.h"
+
+NotionSDK* client = test_sdk(NULL, NULL);
+PNError* err = NULL;
+Entity* database = notion_database(client, NULL);
+voxgig_value* database_rec = database->vt->load(database, cmap(1, "id", v_str("test01")), NULL, &err);
+printf("%s\n", voxgig_to_json(database_rec));
+```
+
 ### JavaScript
 
 ```js
@@ -103,12 +117,13 @@ console.log(database)
 
 | Language | Package | Install |
 | --- | --- | --- |
-| TypeScript | `@voxgig-sdk/notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/releases) |
-| Python | `voxgig-sdk-notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/releases) |
-| PHP | `voxgig-sdk/notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/releases) |
+| TypeScript | `@voxgig-sdk/notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
+| Python | `voxgig-sdk-notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
+| PHP | `voxgig-sdk/notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
 | Golang | `github.com/voxgig-sdk/notion-sdk/go` | `go get github.com/voxgig-sdk/notion-sdk/go@latest` |
-| Lua | `voxgig-sdk-notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/releases) |
-| JavaScript | `@voxgig-sdk/notion-js` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/releases) |
+| Lua | `voxgig-sdk-notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
+| C | `voxgig-sdk-notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
+| JavaScript | `@voxgig-sdk/notion-js` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
 | Go CLI | `github.com/voxgig-sdk/notion-sdk/go-cli` | `go install github.com/voxgig-sdk/notion-sdk/go-cli/cmd/notion@latest` |
 | Go MCP server | `github.com/voxgig-sdk/notion-sdk/go-mcp` | `go get github.com/voxgig-sdk/notion-sdk/go-mcp@latest` |
 
@@ -134,7 +149,7 @@ See the [TypeScript README](ts/README.md) for the full guide.
 
 | Surface | Path |
 | --- | --- |
-| **SDK** (TypeScript, Python, PHP, Golang, Lua, JavaScript) | `ts/` `py/` `php/` `go/` `lua/` `js/` |
+| **SDK** (TypeScript, Python, PHP, Golang, Lua, C, JavaScript) | `ts/` `py/` `php/` `go/` `lua/` `c/` `js/` |
 | **CLI** | `go-cli/` |
 | **MCP server** | `go-mcp/` |
 
@@ -238,6 +253,22 @@ local database, err = client:Database():load({ id = "example_id" })
 print(database)
 ```
 
+### C
+
+```c
+#include "core/api.h"
+
+NotionSDK* client = notion_sdk_new(cmap(1,
+    "apikey", v_str(getenv("NOTION_APIKEY"))));
+PNError* err = NULL;
+
+
+Entity* database = notion_database(client, NULL);
+// Load a specific database (returns the record, sets *err on failure)
+voxgig_value* database_rec = database->vt->load(database, cmap(1, "id", v_str("example_id")), NULL, &err);
+printf("%s\n", voxgig_to_json(database_rec));
+```
+
 ### JavaScript
 
 ```js
@@ -318,6 +349,15 @@ local result, err = client:direct({
 })
 ```
 
+**C:**
+```c
+PNError* err = NULL;
+voxgig_value* result = sdk_direct(client, cmap(3,
+    "path", v_str("/api/resource/{id}"),
+    "method", v_str("GET"),
+    "params", cmap(1, "id", v_str("example"))), &err);
+```
+
 **JavaScript:**
 ```js
 const result = await client.direct({
@@ -396,6 +436,7 @@ The full story: [voxgig.com/sdk/custom](https://voxgig.com/sdk/custom).
 - [PHP](php/README.md)
 - [Golang](go/README.md)
 - [Lua](lua/README.md)
+- [C](c/README.md)
 - [JavaScript](js/README.md)
 
 ## Upstream API

@@ -1,4 +1,4 @@
 # Entity Models
 
-@"database.aon"
-@"page.aon"
+@"./database.aon"
+@"./page.aon"

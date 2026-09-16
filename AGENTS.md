@@ -12,10 +12,11 @@ There are companion guides deeper in the tree: one per language
 
 ## Project map
 
-**Targets** (8):
+**Targets** (9):
 
 | Target | Directory | Build guide |
 | --- | --- | --- |
+| `c` | `c/` | [`c/AGENTS.md`](./c/AGENTS.md) |
 | `go` | `go/` | [`go/AGENTS.md`](./go/AGENTS.md) |
 | `go-cli` | `go-cli/` — A CLI surface, not an SDK client library. | [`go-cli/AGENTS.md`](./go-cli/AGENTS.md) |
 | `go-mcp` | `go-mcp/` — An MCP server surface for AI agents, not an SDK client library. | [`go-mcp/AGENTS.md`](./go-mcp/AGENTS.md) |
@@ -149,7 +150,7 @@ syntax) with unification semantics:
 | `*default \| type` | A default value unified against a type (e.g. `*true \| boolean`). |
 | `name: key()` | Bind a field to its map key (so `feature: log: {}` gets `name: 'log'`). |
 | `$$path$$` | Interpolate a model value into a string — e.g. the SDK `name`. |
-| `@"file.aon"` | Include another fragment (how the index files work). |
+| `@"./file.aon"` | Include another fragment (how the index files work). The `./` is required on a local path. |
 | `x: .y` | Reference another path's value (e.g. `deps: ts: .js`). |
 
 For example, the schema for every feature entry:

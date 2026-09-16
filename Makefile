@@ -8,6 +8,7 @@
 # stored on disk or passed on the command line.
 #
 # Publication state (from the model):
+#   c        none (publish pending: deploy publishes the git tag only)
 #   go       tag-only
 #   go-cli   tag-only
 #   go-mcp   tag-only
@@ -32,6 +33,7 @@
 SHELL := /bin/bash
 
 GITHUB_ALIAS ?= github
+NONE_ALIAS ?= none
 NPM_ALIAS ?= npm
 LUAROCKS_ALIAS ?= luarocks
 PACKAGIST_ALIAS ?= packagist
@@ -41,7 +43,7 @@ PYPI_ALIAS ?= pypi
 VERSION := $(shell node -p "require('./ts/package.json').version" 2>/dev/null || echo 0.0.0)
 BORU_DRY_RUN_FILLER := BORU-DRY-RUN-FILLER-NOT-A-REAL-SECRET
 
-TARGETS := go go-cli go-mcp js lua php py ts
+TARGETS := c go go-cli go-mcp js lua php py ts
 
 .PHONY: deploy deploy-dry \
   $(addprefix deploy-,$(TARGETS)) $(addprefix deploy-dry-,$(TARGETS)) \
@@ -51,6 +53,7 @@ deploy:
 	@echo "Deployment is per-target — pick one (each upload is irreversible):"
 	@echo "  make deploy-<target>    targets: $(TARGETS)"
 	@echo "Registry state is set in the model (.sdk/model/target/<t>.aon):"
+	@echo "  deploy-c        none publish pending (deploy = git tag only)"
 	@echo "  deploy-go       tag-only"
 	@echo "  deploy-go-cli   tag-only"
 	@echo "  deploy-go-mcp   tag-only"
@@ -63,6 +66,27 @@ deploy:
 
 deploy-dry: $(addprefix deploy-dry-,$(TARGETS))
 	@echo "deploy-dry: all targets rehearsed OK ($(TARGETS))"
+
+deploy-c:
+	@echo "deploy-c: none publication is pending — publishing the git tag only."
+	boru vault exec --for=github=$(GITHUB_ALIAS) -- $(MAKE) tag-push-c
+
+deploy-dry-c:
+	boru vault exec --dry-run --for=github=$(GITHUB_ALIAS) -- $(MAKE) tag-push-c
+
+tag-push-c:
+	@set -e; tag="c/v$(VERSION)"; \
+	token="$${GITHUB_TOKEN:-$$GH_TOKEN}"; \
+	if [ "$$token" = "$(BORU_DRY_RUN_FILLER)" ]; then \
+	  echo "[dry-run] boru filler token detected: would create (if missing) and push tag $$tag; nothing pushed."; exit 0; fi; \
+	if [ -z "$$token" ]; then echo "tag-push-c: no GITHUB_TOKEN in env — run via make deploy-c (boru vault exec)"; exit 1; fi; \
+	if git rev-parse -q --verify "refs/tags/$$tag" >/dev/null; then \
+	  echo "tag $$tag already exists — pushing existing tag"; \
+	else git tag -a "$$tag" -m "Release $$tag"; fi; \
+	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
+	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
+	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
+	echo "pushed $$tag (none publication pending — tag-only deploy)"
 
 deploy-go:
 	boru vault exec --for=github=$(GITHUB_ALIAS) -- $(MAKE) -C go publish

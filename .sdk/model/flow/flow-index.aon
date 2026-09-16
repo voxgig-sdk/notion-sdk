@@ -1,4 +1,4 @@
 # Flows
 
-@"BasicDatabaseFlow.aon"
-@"BasicPageFlow.aon"
+@"./BasicDatabaseFlow.aon"
+@"./BasicPageFlow.aon"
