@@ -65,6 +65,12 @@ main: kit: entity: page: {
       name: "create"
       points: [
         {
+          contract: {
+            id: "POST /pages"
+            json: "{\"operationId\":\"createPage\",\"parameters\":[],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"parent\":{\"properties\":{\"database_id\":{\"type\":\"string\"}},\"type\":\"object\"},\"properties\":{\"type\":\"object\"}},\"required\":[\"parent\",\"properties\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"archived\":{\"type\":\"boolean\"},\"created_time\":{\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"last_edited_time\":{\"type\":\"string\"},\"object\":{\"type\":\"string\"},\"parent\":{\"properties\":{\"database_id\":{\"type\":\"string\"}},\"type\":\"object\"},\"properties\":{\"type\":\"object\"}},\"type\":\"object\"}}},\"description\":\"The created page\"}},\"security\":[{\"bearerAuth\":[]}],\"securitySchemes\":{\"bearerAuth\":{\"scheme\":\"bearer\",\"type\":\"http\"}},\"securitySource\":\"definition\"}"
+            source: "openapi3"
+            version: 1
+          }
           method: "POST"
           orig: "/pages"
           segments: [
@@ -93,6 +99,12 @@ main: kit: entity: page: {
                 type: "`$STRING`"
               }
             ]
+          }
+          contract: {
+            id: "GET /pages/{id}"
+            json: "{\"operationId\":\"getPage\",\"parameters\":[{\"in\":\"path\",\"name\":\"id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"archived\":{\"type\":\"boolean\"},\"created_time\":{\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"last_edited_time\":{\"type\":\"string\"},\"object\":{\"type\":\"string\"},\"parent\":{\"properties\":{\"database_id\":{\"type\":\"string\"}},\"type\":\"object\"},\"properties\":{\"type\":\"object\"}},\"type\":\"object\"}}},\"description\":\"The requested page\"}},\"security\":[{\"bearerAuth\":[]}],\"securitySchemes\":{\"bearerAuth\":{\"scheme\":\"bearer\",\"type\":\"http\"}},\"securitySource\":\"definition\"}"
+            source: "openapi3"
+            version: 1
           }
           method: "GET"
           orig: "/pages/{id}"
@@ -130,6 +142,12 @@ main: kit: entity: page: {
                 type: "`$STRING`"
               }
             ]
+          }
+          contract: {
+            id: "PATCH /pages/{id}"
+            json: "{\"operationId\":\"updatePage\",\"parameters\":[{\"in\":\"path\",\"name\":\"id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"archived\":{\"type\":\"boolean\"},\"properties\":{\"type\":\"object\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"archived\":{\"type\":\"boolean\"},\"created_time\":{\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"last_edited_time\":{\"type\":\"string\"},\"object\":{\"type\":\"string\"},\"parent\":{\"properties\":{\"database_id\":{\"type\":\"string\"}},\"type\":\"object\"},\"properties\":{\"type\":\"object\"}},\"type\":\"object\"}}},\"description\":\"The updated page\"}},\"security\":[{\"bearerAuth\":[]}],\"securitySchemes\":{\"bearerAuth\":{\"scheme\":\"bearer\",\"type\":\"http\"}},\"securitySource\":\"definition\"}"
+            source: "openapi3"
+            version: 1
           }
           method: "PATCH"
           orig: "/pages/{id}"

@@ -41,5 +41,250 @@
         "properties": {}
       }
     }
+  },
+  "requests": {
+    "POST /pages": {
+      "provenance": "operation-contract",
+      "contract": {
+        "operationId": "createPage",
+        "parameters": [],
+        "protocol": "http",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "parent": {
+                    "properties": {
+                      "database_id": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "properties": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "parent",
+                  "properties"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "archived": {
+                      "type": "boolean"
+                    },
+                    "created_time": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "last_edited_time": {
+                      "type": "string"
+                    },
+                    "object": {
+                      "type": "string"
+                    },
+                    "parent": {
+                      "properties": {
+                        "database_id": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "properties": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The created page"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "securitySchemes": {
+          "bearerAuth": {
+            "scheme": "bearer",
+            "type": "http"
+          }
+        },
+        "securitySource": "definition"
+      }
+    },
+    "GET /pages/{id}": {
+      "provenance": "operation-contract",
+      "contract": {
+        "operationId": "getPage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "protocol": "http",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "archived": {
+                      "type": "boolean"
+                    },
+                    "created_time": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "last_edited_time": {
+                      "type": "string"
+                    },
+                    "object": {
+                      "type": "string"
+                    },
+                    "parent": {
+                      "properties": {
+                        "database_id": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "properties": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The requested page"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "securitySchemes": {
+          "bearerAuth": {
+            "scheme": "bearer",
+            "type": "http"
+          }
+        },
+        "securitySource": "definition"
+      }
+    },
+    "PATCH /pages/{id}": {
+      "provenance": "operation-contract",
+      "contract": {
+        "operationId": "updatePage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "protocol": "http",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "archived": {
+                    "type": "boolean"
+                  },
+                  "properties": {
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "archived": {
+                      "type": "boolean"
+                    },
+                    "created_time": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "last_edited_time": {
+                      "type": "string"
+                    },
+                    "object": {
+                      "type": "string"
+                    },
+                    "parent": {
+                      "properties": {
+                        "database_id": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "properties": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The updated page"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "securitySchemes": {
+          "bearerAuth": {
+            "scheme": "bearer",
+            "type": "http"
+          }
+        },
+        "securitySource": "definition"
+      }
+    }
   }
 }

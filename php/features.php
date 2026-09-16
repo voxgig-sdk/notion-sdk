@@ -4,7 +4,14 @@ declare(strict_types=1);
 // Notion SDK feature factory
 
 require_once __DIR__ . '/feature/BaseFeature.php';
+require_once __DIR__ . '/feature/DebugFeature.php';
+require_once __DIR__ . '/feature/IdempotencyFeature.php';
+require_once __DIR__ . '/feature/MetricsFeature.php';
+require_once __DIR__ . '/feature/PagingFeature.php';
+require_once __DIR__ . '/feature/RatelimitFeature.php';
+require_once __DIR__ . '/feature/RetryFeature.php';
 require_once __DIR__ . '/feature/TestFeature.php';
+require_once __DIR__ . '/feature/TimeoutFeature.php';
 
 
 class NotionFeatures
@@ -14,8 +21,22 @@ class NotionFeatures
         switch ($name) {
             case "base":
                 return new NotionBaseFeature();
+            case "debug":
+                return new NotionDebugFeature();
+            case "idempotency":
+                return new NotionIdempotencyFeature();
+            case "metrics":
+                return new NotionMetricsFeature();
+            case "paging":
+                return new NotionPagingFeature();
+            case "ratelimit":
+                return new NotionRatelimitFeature();
+            case "retry":
+                return new NotionRetryFeature();
             case "test":
                 return new NotionTestFeature();
+            case "timeout":
+                return new NotionTimeoutFeature();
             default:
                 return new NotionBaseFeature();
         }
@@ -31,7 +52,14 @@ class NotionFeatures
     {
         switch ($name) {
             case "base":
+            case "debug":
+            case "idempotency":
+            case "metrics":
+            case "paging":
+            case "ratelimit":
+            case "retry":
             case "test":
+            case "timeout":
                 return true;
             default:
                 return false;
