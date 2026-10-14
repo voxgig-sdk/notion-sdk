@@ -14,9 +14,16 @@ predictable and low-friction for both humans and AI agents.
 
 
 ## Install
-```js
-npm install notion
+This package is not yet published to npm. Install it from the GitHub
+release tag (`js/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/notion-sdk/tags)), or from a
+clone:
+
+```bash
+git clone https://github.com/voxgig-sdk/notion-sdk
+npm install ./notion-sdk/js
 ```
+
+
 ## Tutorial: your first API call
 
 This tutorial walks through creating a client, listing entities, and
@@ -26,7 +33,7 @@ loading a specific record.
 ### Create a Client
 
 ```js
-const { NotionSDK } = require('@voxgig-sdk/notion-js')
+const { NotionSDK } = require('@voxgig-sdk/notion-sdk-js')
 
 const client = new NotionSDK({
   apikey: process.env.NOTION_APIKEY,
@@ -37,7 +44,7 @@ const client = new NotionSDK({
 
 ```js
 const database = await client.Database().load({ id: 'database_id' })
-console.log(database)
+console.log(database.data())
 ```
 
 ### Create a Database
@@ -47,7 +54,7 @@ const created = await client.Database().create({
   created_time: 'example_created_time',
   last_edited_time: 'example_last_edited_time',
 })
-console.log(created)
+console.log(created.data())
 ```
 
 ### Update a Database
@@ -58,7 +65,7 @@ const updated = await client.Database().update({
   created_time: 'example_created_time',
   last_edited_time: 'example_last_edited_time',
 })
-console.log(updated)
+console.log(updated.data())
 ```
 
 ### Direct API Access
@@ -78,6 +85,78 @@ if (result.ok) {
 ```
 
 
+## Use with Station
+
+This SDK ships as a [voxgig/station](https://github.com/voxgig/station)
+plugin: bind it to a local `Station` and outbound configuration,
+credentials, and observability move to one place. The feature is
+present but **off by default** — nothing changes until you bind.
+
+### Declarative: `station.json` + `station.sdk()`
+
+Declare an instance in `station.json` at the repo root (committable —
+names and stores, never values):
+
+```json
+{ "station": 1,
+  "profiles": { "default": {
+    "sdk": { "notion": {
+      "package": "@voxgig-sdk/notion-sdk-js" } } } } }
+```
+
+Then get the client where you need it:
+
+1. `station = Station.open()` — reads and validates `station.json`;
+   constructs nothing.
+2. `client = station.sdk('notion')` — built on first ask and cached,
+   so the same name returns the same client.
+
+Loading this package is the whole bootstrap: it registers its own
+factory (constructor plus embedded config) with the station library at
+module init, so `station.sdk()` needs no SDK import in application
+code. That is what the `package` key above is for — it names the module
+for station to load, since nothing else in this example would execute
+it. An application that imports this SDK for its types anyway can drop
+the key: that import is itself the bootstrap.
+
+A second instance of the same API is one more key — `"notion$test"`
+beside `"notion"` — and `station.sdk('notion$test')` returns it.
+SDK features are configured in the same file too: fleet-wide, per api,
+or per instance. `station.check()` resolves and constructs every
+active instance without sending a request — run it in CI.
+
+### The secret name derives from the instance
+
+The credential comes from [sekreto](https://github.com/voxgig/sekreto)
+under a name derived from the **instance** name — the instance token
+lowercased, plus `.apikey`. The untagged instance `notion` derives
+`notion.apikey` — by default the `NOTION_APIKEY` environment
+variable this README already documents, unchanged. A tagged instance
+derives its own: `notion$test` → `notion_test.apikey` →
+`NOTION_TEST_APIKEY` — each instance is a separate credentialed use
+of the API, and its env var is derivable from the name you chose. To
+pin a name instead, set `secret` on the instance block, or at the
+api level for several instances sharing one key. Point a profile at a
+vault later and application code does not change; sekreto's own
+documentation covers the stores. The key stays out of `options()` and
+`prepare()` output; `station.tap(...)` shows live traffic.
+
+### Imperative: `connect()` — the retrofit path
+
+Bind by passing the SDK class to the station:
+
+1. `station = Station.open()` — profile, env, and proxy all defaulted.
+2. `client = station.connect(NotionSDK)` — replaces direct
+   construction; `connect(NotionSDK, { as: 'test' })` binds
+   a second, tagged instance.
+
+With no `station.json` at all this runs solo with everything
+defaulted — the two-line form is how an existing application starts.
+
+Station failures surface through this SDK's own error path
+(`err.code`, `station_*`); the codes are catalogued in
+[station error codes](https://github.com/voxgig/sdkgen/blob/main/docs/reference/station-errors.md).
+
 ## Error handling
 
 Entity operations reject on failure, so wrap them in `try` / `catch`:
@@ -85,14 +164,15 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 ```ts
 try {
   const database = await client.Database().load({ id: "example_id" })
-  console.log(database)
+  console.log(database.data())
 } catch (err) {
   console.error('load failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -101,8 +181,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -120,9 +200,6 @@ const result = await client.direct({
   params: { id: 'example' },
 })
 
-if (result instanceof Error) {
-  throw result
-}
 if (result.ok) {
   console.log(result.status)  // 200
   console.log(result.data)    // response body
@@ -152,9 +229,8 @@ Create a mock client for unit testing — no server required:
 const client = NotionSDK.test()
 
 const database = await client.Database().load({ id: 'test01' })
-// database is the entity, populated with mock response data
-// — call database.data() for the record itself
-console.log(database)
+// database is the Database entity; .data() reads its mock record
+console.log(database.data())
 ```
 
 You can also use the instance method:
@@ -262,9 +338,9 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `load(reqmatch?, ctrl?): Promise<Entity>` | Load a single entity by match criteria. |
-| `create` | `create(reqdata?, ctrl?): Promise<Entity>` | Create a new entity. |
-| `update` | `update(reqdata?, ctrl?): Promise<Entity>` | Update an existing entity. |
+| `load` | `load(reqmatch?, ctrl?): Promise<Entity>` | Load a single entity by match criteria, and return it. |
+| `create` | `create(reqdata?, ctrl?): Promise<Entity>` | Create a new entity, and return it. |
+| `update` | `update(reqdata?, ctrl?): Promise<Entity>` | Update an existing entity, and return it. |
 | `data` | `data(data?: Partial<Entity>): Entity` | Get or set entity data. |
 | `match` | `match(match?: Partial<Entity>): Partial<Entity>` | Get or set entity match criteria. |
 | `make` | `make(): Entity` | Create a new instance with the same options. |
@@ -273,8 +349,8 @@ All entities share the same interface.
 
 #### Return values
 
-Entity operations resolve to the entity data directly — there is no
-result envelope:
+Entity operations resolve to the entity itself — there is no result
+envelope, and an entity's `data()` reads its record:
 
 - `load`, `create` and `update` resolve to a single entity object.
 
@@ -426,7 +502,7 @@ const page = await client.Page().create({
 
 ## Features
 
-This SDK ships 8 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -435,23 +511,24 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`debug`](#debug) | Request/response capture ring buffer for debugging |
-| [`idempotency`](#idempotency) | Idempotency keys for safe retries of mutating operations |
-| [`metrics`](#metrics) | Statistics capture: per-operation counters and latency |
-| [`paging`](#paging) | Pagination signals for list operations |
-| [`ratelimit`](#ratelimit) | Client-side rate limiting via a token bucket |
-| [`retry`](#retry) | Automatic retry of transient failures with exponential backoff |
-| [`test`](#test) | In-memory mock transport for testing without a live server |
-| [`timeout`](#timeout) | Per-request timeout with transport abort |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`station`](#station) | Station control surface binding for outbound integrations |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
 
-> **Order matters for `ratelimit`, `retry`, `timeout`.** These wrap the
+> **Order matters for `ratelimit`, `retry`, `station`, `timeout`.** These wrap the
 > transport, so each one wraps whatever is already installed: the order you
 > activate them in IS the nesting order. Activating them as an ordered list
 > rather than a map is what fixes that order.
 
 ### debug
 
-Request/response capture ring buffer for debugging.
+Debug capture.
 
 | Option | Default |
 |---|---|
@@ -463,7 +540,7 @@ Set `feature.debug.active` to enable it, then override any of the options above.
 
 ### idempotency
 
-Idempotency keys for safe retries of mutating operations.
+Idempotency.
 
 | Option | Default |
 |---|---|
@@ -476,7 +553,7 @@ Set `feature.idempotency.active` to enable it, then override any of the options 
 
 ### metrics
 
-Statistics capture: per-operation counters and latency.
+Metrics.
 
 | Option | Default |
 |---|---|
@@ -486,7 +563,7 @@ Set `feature.metrics.active` to enable it, then override any of the options abov
 
 ### paging
 
-Pagination signals for list operations.
+Paging.
 
 | Option | Default |
 |---|---|
@@ -502,7 +579,7 @@ Set `feature.paging.active` to enable it, then override any of the options above
 
 ### ratelimit
 
-Client-side rate limiting via a token bucket.
+Rate limiting.
 
 | Option | Default |
 |---|---|
@@ -518,7 +595,7 @@ activated earlier.
 
 ### retry
 
-Automatic retry of transient failures with exponential backoff.
+Retry.
 
 | Option | Default |
 |---|---|
@@ -535,9 +612,30 @@ Set `feature.retry.active` to enable it, then override any of the options above.
 transport features decides what it sees. A feature activated later wraps one
 activated earlier.
 
+### station
+
+Station control surface binding for outbound integrations.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `capture` | `'meta'` |
+| `fromEnv` | `true` |
+| `instance` | `''` |
+| `profile` | `''` |
+| `register` | `true` |
+| `secret` | `''` |
+| `url` | `''` |
+
+Set `feature.station.active` to enable it, then override any of the options above.
+
+`station` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
@@ -547,7 +645,7 @@ Set `feature.test.active` to enable it, then override any of the options above.
 
 ### timeout
 
-Per-request timeout with transport abort.
+Timeout.
 
 | Option | Default |
 |---|---|
@@ -599,14 +697,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **DebugFeature**: Request/response capture ring buffer for debugging
-- **IdempotencyFeature**: Idempotency keys for safe retries of mutating operations
-- **MetricsFeature**: Statistics capture: per-operation counters and latency
-- **PagingFeature**: Pagination signals for list operations
-- **RatelimitFeature**: Client-side rate limiting via a token bucket
-- **RetryFeature**: Automatic retry of transient failures with exponential backoff
-- **TestFeature**: In-memory mock transport for testing without a live server
-- **TimeoutFeature**: Per-request timeout with transport abort
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **StationFeature**: Station control surface binding for outbound integrations
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -626,7 +725,7 @@ notion/
 Import the SDK from the package root:
 
 ```js
-const { NotionSDK } = require('@voxgig-sdk/notion-js')
+const { NotionSDK } = require('@voxgig-sdk/notion-sdk-js')
 ```
 
 ### Entity state

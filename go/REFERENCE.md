@@ -127,19 +127,19 @@ fmt.Println(database.GetName()) // "database"
 
 #### `Load(reqmatch, ctrl map[string]any) (any, error)`
 
-Load a single entity matching the given criteria.
+Load a single entity matching the given criteria. Returns the entity, whose record `Data()` reads; `err` is non-nil on failure.
 
 ```go
 result, err := client.Database(nil).Load(map[string]any{"id": "database_id"}, nil)
 if err != nil {
     panic(err)
 }
-fmt.Println(result)
+fmt.Println(result.(sdk.Entity).Data())
 ```
 
 #### `Create(reqdata, ctrl map[string]any) (any, error)`
 
-Create a new entity with the given data.
+Create a new entity with the given data. Returns the created entity; `err` is non-nil on failure.
 
 ```go
 result, err := client.Database(nil).Create(map[string]any{
@@ -147,12 +147,12 @@ result, err := client.Database(nil).Create(map[string]any{
 if err != nil {
     panic(err)
 }
-fmt.Println(result)
+fmt.Println(result.(sdk.Entity).Data())
 ```
 
 #### `Update(reqdata, ctrl map[string]any) (any, error)`
 
-Update an existing entity. The data must include the entity `id`.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity; `err` is non-nil on failure.
 
 ```go
 result, err := client.Database(nil).Update(map[string]any{
@@ -162,7 +162,7 @@ result, err := client.Database(nil).Update(map[string]any{
 if err != nil {
     panic(err)
 }
-fmt.Println(result)
+fmt.Println(result.(sdk.Entity).Data())
 ```
 
 ### Common Methods
@@ -181,6 +181,14 @@ Get or set the entity match criteria. Works the same as `Data()`.
 
 Create a new `DatabaseEntity` instance with the same client and
 options.
+
+#### `Stream(action string, args map[string]any, callopts map[string]any) <-chan StreamItem`
+
+Run an operation through the pipeline and send its result items on the
+returned channel, which closes when the stream ends. A `StreamItem` holds
+one item in `Item`, or in `Err` the error that ended the stream: the
+error the operation itself would return, sent as the last value. Under
+`throw: false` in `callopts["ctrl"]`, no error is sent.
 
 #### `GetName() string`
 
@@ -224,19 +232,19 @@ fmt.Println(page.GetName()) // "page"
 
 #### `Load(reqmatch, ctrl map[string]any) (any, error)`
 
-Load a single entity matching the given criteria.
+Load a single entity matching the given criteria. Returns the entity, whose record `Data()` reads; `err` is non-nil on failure.
 
 ```go
 result, err := client.Page(nil).Load(map[string]any{"id": "page_id"}, nil)
 if err != nil {
     panic(err)
 }
-fmt.Println(result)
+fmt.Println(result.(sdk.Entity).Data())
 ```
 
 #### `Create(reqdata, ctrl map[string]any) (any, error)`
 
-Create a new entity with the given data.
+Create a new entity with the given data. Returns the created entity; `err` is non-nil on failure.
 
 ```go
 result, err := client.Page(nil).Create(map[string]any{
@@ -244,12 +252,12 @@ result, err := client.Page(nil).Create(map[string]any{
 if err != nil {
     panic(err)
 }
-fmt.Println(result)
+fmt.Println(result.(sdk.Entity).Data())
 ```
 
 #### `Update(reqdata, ctrl map[string]any) (any, error)`
 
-Update an existing entity. The data must include the entity `id`.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity; `err` is non-nil on failure.
 
 ```go
 result, err := client.Page(nil).Update(map[string]any{
@@ -259,7 +267,7 @@ result, err := client.Page(nil).Update(map[string]any{
 if err != nil {
     panic(err)
 }
-fmt.Println(result)
+fmt.Println(result.(sdk.Entity).Data())
 ```
 
 ### Common Methods
@@ -279,6 +287,14 @@ Get or set the entity match criteria. Works the same as `Data()`.
 Create a new `PageEntity` instance with the same client and
 options.
 
+#### `Stream(action string, args map[string]any, callopts map[string]any) <-chan StreamItem`
+
+Run an operation through the pipeline and send its result items on the
+returned channel, which closes when the stream ends. A `StreamItem` holds
+one item in `Item`, or in `Err` the error that ended the stream: the
+error the operation itself would return, sent as the last value. Under
+`throw: false` in `callopts["ctrl"]`, no error is sent.
+
 #### `GetName() string`
 
 Return the entity name.
@@ -290,14 +306,15 @@ Return the entity name.
 
 | Feature | Version | Description |
 | --- | --- | --- |
-| `debug` | 0.0.1 | Request/response capture ring buffer for debugging |
-| `idempotency` | 0.0.1 | Idempotency keys for safe retries of mutating operations |
-| `metrics` | 0.0.1 | Statistics capture: per-operation counters and latency |
-| `paging` | 0.0.1 | Pagination signals for list operations |
-| `ratelimit` | 0.0.1 | Client-side rate limiting via a token bucket |
-| `retry` | 0.0.1 | Automatic retry of transient failures with exponential backoff |
-| `test` | 0.0.1 | In-memory mock transport for testing without a live server |
-| `timeout` | 0.0.1 | Per-request timeout with transport abort |
+| `debug` | 0.0.1 | Debug capture |
+| `idempotency` | 0.0.1 | Idempotency |
+| `metrics` | 0.0.1 | Metrics |
+| `paging` | 0.0.1 | Paging |
+| `ratelimit` | 0.0.1 | Rate limiting |
+| `retry` | 0.0.1 | Retry |
+| `station` | 0.0.1 | Station control surface binding for outbound integrations |
+| `test` | 0.0.1 | Test transport |
+| `timeout` | 0.0.1 | Timeout |
 
 
 Features are activated via the `feature` option:
@@ -311,6 +328,7 @@ client := sdk.NewNotionSDK(map[string]any{
         "paging": map[string]any{"active": true},
         "ratelimit": map[string]any{"active": true},
         "retry": map[string]any{"active": true},
+        "station": map[string]any{"active": true},
         "test": map[string]any{"active": true},
         "timeout": map[string]any{"active": true},
     },
@@ -329,7 +347,7 @@ transport, and the order you list them in is the order they nest.
 
 #### Ordering
 
-`ratelimit`, `retry`, `timeout` wrap the transport. Each
+`ratelimit`, `retry`, `station`, `timeout` wrap the transport. Each
 wraps whatever is already installed, so **activation order is nesting order**:
 a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
@@ -343,7 +361,7 @@ rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
 
-Request/response capture ring buffer for debugging.
+Debug capture.
 
 **Configuration**
 
@@ -374,7 +392,7 @@ its default unless you name it.
 
 #### `idempotency`
 
-Idempotency keys for safe retries of mutating operations.
+Idempotency.
 
 **Configuration**
 
@@ -405,7 +423,7 @@ its default unless you name it.
 
 #### `metrics`
 
-Statistics capture: per-operation counters and latency.
+Metrics.
 
 **Configuration**
 
@@ -433,7 +451,7 @@ its default unless you name it.
 
 #### `paging`
 
-Pagination signals for list operations.
+Paging.
 
 **Configuration**
 
@@ -468,7 +486,7 @@ its default unless you name it.
 
 #### `ratelimit`
 
-Client-side rate limiting via a token bucket.
+Rate limiting.
 
 **Configuration**
 
@@ -499,7 +517,7 @@ its default unless you name it.
 
 #### `retry`
 
-Automatic retry of transient failures with exponential backoff.
+Retry.
 
 **Configuration**
 
@@ -531,9 +549,37 @@ its default unless you name it.
   sees. See [Ordering](#ordering) above.
 - Inactive by default: leaving it out costs nothing at runtime.
 
+#### `station`
+
+Station control surface binding for outbound integrations.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `capture` | `'meta'` |
+| `fromEnv` | `true` |
+| `instance` | `''` |
+| `profile` | `''` |
+| `register` | `true` |
+| `secret` | `''` |
+| `url` | `''` |
+
+**Usage**
+
+Set `feature.station.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Wraps the transport: its place in the activation order decides what it
+  sees. See [Ordering](#ordering) above.
+- Inactive by default: leaving it out costs nothing at runtime.
+
 #### `test`
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 **Configuration**
 
@@ -564,7 +610,7 @@ its default unless you name it.
 
 #### `timeout`
 
-Per-request timeout with transport abort.
+Timeout.
 
 **Configuration**
 
@@ -576,6 +622,7 @@ Per-request timeout with transport abort.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

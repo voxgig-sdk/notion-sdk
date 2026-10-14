@@ -148,6 +148,21 @@ def make_config():
         "strict": False,
         "transport": "wrap",
       },
+            "station": {
+        "options": {
+          "active": False,
+          "capture": "meta",
+          "fromEnv": True,
+          "instance": "",
+          "profile": "",
+          "register": True,
+          "secret": "",
+          "url": "",
+        },
+        "optspec": {},
+        "strict": False,
+        "transport": "wrap",
+      },
             "test": {
         "options": {
           "active": False,
@@ -166,6 +181,7 @@ def make_config():
         },
         "optspec": {
           "clearTimer": "`$FUNCTION`",
+          "now": "`$FUNCTION`",
           "setTimer": "`$FUNCTION`",
         },
         "strict": False,
@@ -190,49 +206,56 @@ def make_config():
         "fields": [
           {
             "name": "created_time",
+            "title": "Created Time",
             "type": "`$STRING`",
           },
           {
             "name": "id",
+            "title": "Id",
             "type": "`$STRING`",
           },
           {
             "name": "last_edited_time",
+            "title": "Last Edited Time",
             "type": "`$STRING`",
           },
           {
             "name": "object",
+            "title": "Object",
             "type": "`$STRING`",
           },
           {
             "name": "parent",
+            "title": "Parent",
+            "type": "`$OBJECT`",
             "op": {
               "create": {
                 "req": True,
                 "type": "`$OBJECT`",
               },
             },
-            "type": "`$OBJECT`",
           },
           {
             "name": "properties",
+            "title": "Properties",
+            "type": "`$OBJECT`",
             "op": {
               "create": {
                 "req": True,
                 "type": "`$OBJECT`",
               },
             },
-            "type": "`$OBJECT`",
           },
           {
             "name": "title",
+            "title": "Title",
+            "type": "`$ARRAY`",
             "op": {
               "create": {
                 "req": True,
                 "type": "`$ARRAY`",
               },
             },
-            "type": "`$ARRAY`",
           },
         ],
         "id": {
@@ -246,7 +269,6 @@ def make_config():
             "name": "create",
             "points": [
               {
-                "args": {},
                 "kind": "http",
                 "method": "POST",
                 "orig": "/databases",
@@ -255,14 +277,20 @@ def make_config():
                     "lit": "databases",
                   },
                 ],
-                "select": {},
+                "parts": [
+                  "databases",
+                ],
+                "rename": {},
                 "transform": {
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
-                "parts": [
-                  "databases",
-                ],
+                "args": {},
+                "select": {},
+                "response": {
+                  "kind": "json",
+                  "media": "application/json",
+                },
               },
             ],
           },
@@ -271,17 +299,6 @@ def make_config():
             "name": "load",
             "points": [
               {
-                "args": {
-                  "params": [
-                    {
-                      "kind": "param",
-                      "name": "id",
-                      "orig": "id",
-                      "reqd": True,
-                      "type": "`$STRING`",
-                    },
-                  ],
-                },
                 "kind": "http",
                 "method": "GET",
                 "orig": "/databases/{id}",
@@ -293,19 +310,35 @@ def make_config():
                     "var": "id",
                   },
                 ],
+                "parts": [
+                  "databases",
+                  "{id}",
+                ],
+                "rename": {},
+                "transform": {
+                  "req": "`reqdata`",
+                  "res": "`body`",
+                },
+                "args": {
+                  "params": [
+                    {
+                      "name": "id",
+                      "orig": "id",
+                      "type": "`$STRING`",
+                      "kind": "param",
+                      "reqd": True,
+                    },
+                  ],
+                },
                 "select": {
                   "exist": [
                     "id",
                   ],
                 },
-                "transform": {
-                  "req": "`reqdata`",
-                  "res": "`body`",
+                "response": {
+                  "kind": "json",
+                  "media": "application/json",
                 },
-                "parts": [
-                  "databases",
-                  "{id}",
-                ],
               },
             ],
           },
@@ -314,17 +347,6 @@ def make_config():
             "name": "update",
             "points": [
               {
-                "args": {
-                  "params": [
-                    {
-                      "kind": "param",
-                      "name": "id",
-                      "orig": "id",
-                      "reqd": True,
-                      "type": "`$STRING`",
-                    },
-                  ],
-                },
                 "kind": "http",
                 "method": "PATCH",
                 "orig": "/databases/{id}",
@@ -336,19 +358,35 @@ def make_config():
                     "var": "id",
                   },
                 ],
+                "parts": [
+                  "databases",
+                  "{id}",
+                ],
+                "rename": {},
+                "transform": {
+                  "req": "`reqdata`",
+                  "res": "`body`",
+                },
+                "args": {
+                  "params": [
+                    {
+                      "name": "id",
+                      "orig": "id",
+                      "type": "`$STRING`",
+                      "kind": "param",
+                      "reqd": True,
+                    },
+                  ],
+                },
                 "select": {
                   "exist": [
                     "id",
                   ],
                 },
-                "transform": {
-                  "req": "`reqdata`",
-                  "res": "`body`",
+                "response": {
+                  "kind": "json",
+                  "media": "application/json",
                 },
-                "parts": [
-                  "databases",
-                  "{id}",
-                ],
               },
             ],
           },
@@ -361,43 +399,50 @@ def make_config():
         "fields": [
           {
             "name": "archived",
+            "title": "Archived",
             "type": "`$BOOLEAN`",
           },
           {
             "name": "created_time",
+            "title": "Created Time",
             "type": "`$STRING`",
           },
           {
             "name": "id",
+            "title": "Id",
             "type": "`$STRING`",
           },
           {
             "name": "last_edited_time",
+            "title": "Last Edited Time",
             "type": "`$STRING`",
           },
           {
             "name": "object",
+            "title": "Object",
             "type": "`$STRING`",
           },
           {
             "name": "parent",
+            "title": "Parent",
+            "type": "`$OBJECT`",
             "op": {
               "create": {
                 "req": True,
                 "type": "`$OBJECT`",
               },
             },
-            "type": "`$OBJECT`",
           },
           {
             "name": "properties",
+            "title": "Properties",
+            "type": "`$OBJECT`",
             "op": {
               "create": {
                 "req": True,
                 "type": "`$OBJECT`",
               },
             },
-            "type": "`$OBJECT`",
           },
         ],
         "id": {
@@ -411,7 +456,6 @@ def make_config():
             "name": "create",
             "points": [
               {
-                "args": {},
                 "kind": "http",
                 "method": "POST",
                 "orig": "/pages",
@@ -420,14 +464,20 @@ def make_config():
                     "lit": "pages",
                   },
                 ],
-                "select": {},
+                "parts": [
+                  "pages",
+                ],
+                "rename": {},
                 "transform": {
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
-                "parts": [
-                  "pages",
-                ],
+                "args": {},
+                "select": {},
+                "response": {
+                  "kind": "json",
+                  "media": "application/json",
+                },
               },
             ],
           },
@@ -436,17 +486,6 @@ def make_config():
             "name": "load",
             "points": [
               {
-                "args": {
-                  "params": [
-                    {
-                      "kind": "param",
-                      "name": "id",
-                      "orig": "id",
-                      "reqd": True,
-                      "type": "`$STRING`",
-                    },
-                  ],
-                },
                 "kind": "http",
                 "method": "GET",
                 "orig": "/pages/{id}",
@@ -458,19 +497,35 @@ def make_config():
                     "var": "id",
                   },
                 ],
+                "parts": [
+                  "pages",
+                  "{id}",
+                ],
+                "rename": {},
+                "transform": {
+                  "req": "`reqdata`",
+                  "res": "`body`",
+                },
+                "args": {
+                  "params": [
+                    {
+                      "name": "id",
+                      "orig": "id",
+                      "type": "`$STRING`",
+                      "kind": "param",
+                      "reqd": True,
+                    },
+                  ],
+                },
                 "select": {
                   "exist": [
                     "id",
                   ],
                 },
-                "transform": {
-                  "req": "`reqdata`",
-                  "res": "`body`",
+                "response": {
+                  "kind": "json",
+                  "media": "application/json",
                 },
-                "parts": [
-                  "pages",
-                  "{id}",
-                ],
               },
             ],
           },
@@ -479,17 +534,6 @@ def make_config():
             "name": "update",
             "points": [
               {
-                "args": {
-                  "params": [
-                    {
-                      "kind": "param",
-                      "name": "id",
-                      "orig": "id",
-                      "reqd": True,
-                      "type": "`$STRING`",
-                    },
-                  ],
-                },
                 "kind": "http",
                 "method": "PATCH",
                 "orig": "/pages/{id}",
@@ -501,19 +545,35 @@ def make_config():
                     "var": "id",
                   },
                 ],
+                "parts": [
+                  "pages",
+                  "{id}",
+                ],
+                "rename": {},
+                "transform": {
+                  "req": "`reqdata`",
+                  "res": "`body`",
+                },
+                "args": {
+                  "params": [
+                    {
+                      "name": "id",
+                      "orig": "id",
+                      "type": "`$STRING`",
+                      "kind": "param",
+                      "reqd": True,
+                    },
+                  ],
+                },
                 "select": {
                   "exist": [
                     "id",
                   ],
                 },
-                "transform": {
-                  "req": "`reqdata`",
-                  "res": "`body`",
+                "response": {
+                  "kind": "json",
+                  "media": "application/json",
                 },
-                "parts": [
-                  "pages",
-                  "{id}",
-                ],
               },
             ],
           },

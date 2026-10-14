@@ -9,7 +9,7 @@ import { createLiveTransport } from '../../live-runner'
 import { runLiveEntity } from '../../live-entity'
 
 
-import { ProjectNameSDK, BaseFeature, stdutil } from '../../..'
+import { ProjectNameSDK, BaseFeature, config, stdutil } from '../../..'
 
 import {
   envOverride,
@@ -25,10 +25,6 @@ import {
 } from '../../utility'
 
 
-// AFTER the imports on purpose: TypeScript hoists `import` above any
-// statement in the emitted CommonJS, so a loader placed above them would
-// run only after every imported module had already been evaluated - and
-// anything reading process.env at module scope would miss these values.
 loadEnvLocal(__dirname + '/../../../.env.local')
 
 
@@ -43,6 +39,8 @@ describe('EntityNameEntity', async () => {
     const ent = testsdk.EntityName()
     assert(null != ent)
   })
+
+  // <[SLOT:failure]>
 
 
   test('basic', async (t) => {

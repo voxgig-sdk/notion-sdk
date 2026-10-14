@@ -2,12 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DebugFeature = void 0;
 const BaseFeature_1 = require("../base/BaseFeature");
-// Request/response capture for debugging. Records a bounded ring buffer of
-// per-operation traces — method, URL, redacted headers, response status and
-// timing — on `client._debug.entries`. Sensitive header values (matching
-// `redact`, default authorization/cookie/api-key style names) are masked.
-// An optional `onEntry` callback receives each finished entry (e.g. to
-// stream to a console). `max` caps the buffer (default 100).
 class DebugFeature extends BaseFeature_1.BaseFeature {
     version = '0.0.1';
     name = 'debug';
@@ -31,7 +25,7 @@ class DebugFeature extends BaseFeature_1.BaseFeature {
             op: ((ctx.op && ctx.op.entity) || '_') + '.' + ((ctx.op && ctx.op.name) || '_'),
             method: spec.method,
             url: spec.url || spec.path,
-            headers: this._redact(spec.headers),
+            headers: this._redact(ctx, spec.headers),
             start: this._now(),
             status: undefined,
             ok: undefined,
@@ -62,7 +56,7 @@ class DebugFeature extends BaseFeature_1.BaseFeature {
         this._finish(ctx, false);
     }
     _finish(ctx, ok) {
-        const entry = this._entries.get(ctx);
+        let entry = this._entries.get(ctx);
         if (null == entry) {
             return;
         }
@@ -72,6 +66,10 @@ class DebugFeature extends BaseFeature_1.BaseFeature {
         if (null == entry.status && null != ctx.result) {
             entry.status = ctx.result.status;
         }
+        // The whole entry leaves through the buffer and the callback: the url
+        // and the error message can carry a query credential the header mask
+        // above never saw.
+        entry = ctx.utility.clean(ctx, entry);
         const client = this._client;
         const buf = client._debug.entries;
         buf.push(entry);
@@ -87,17 +85,18 @@ class DebugFeature extends BaseFeature_1.BaseFeature {
             catch (_e) { }
         }
     }
-    _redact(headers) {
+    // The core clean rules apply (clean.keys, every registered value); the
+    // feature's own `redact` list ADDS header names on top of them.
+    _redact(ctx, headers) {
         if (null == headers) {
             return {};
         }
-        const patterns = this._options.redact ||
-            ['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key'];
+        const patterns = (this._options.redact || []).map((n) => String(n).toLowerCase());
         const out = {};
         for (const k of Object.keys(headers)) {
-            out[k] = patterns.indexOf(k.toLowerCase()) >= 0 ? '<redacted>' : headers[k];
+            out[k] = patterns.indexOf(k.toLowerCase()) >= 0 ? '[redacted]' : headers[k];
         }
-        return out;
+        return ctx.utility.clean(ctx, out);
     }
     _now() {
         const now = this._options.now;

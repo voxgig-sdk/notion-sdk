@@ -37,6 +37,8 @@ require_once __DIR__ . '/TransformResponse.php';
 
 NotionUtility::setRegistrar(function (NotionUtility $u): void {
     $u->clean = [NotionClean::class, 'call'];
+    $u->clean_add = [NotionClean::class, 'add'];
+    $u->clean_explain = [NotionDone::class, 'clean_explain'];
     $u->done = [NotionDone::class, 'call'];
     $u->make_error = [NotionMakeError::class, 'call'];
     $u->feature_add = [NotionFeatureAdd::class, 'call'];

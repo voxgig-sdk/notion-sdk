@@ -10,11 +10,9 @@ This is an unofficial SDK for the Notion Pages and Databases public API, generat
 
 Learn more about Voxgig SDKs at [voxgig.com/sdk](https://voxgig.com/sdk/).
 
-Full documentation for this SDK: [https://voxgig-sdk.github.io/notion-sdk/](https://voxgig-sdk.github.io/notion-sdk/)
+> TypeScript, Python, PHP, Golang, Ruby, Lua, C, JavaScript SDKs, a CLI with an interactive REPL, and an MCP server for AI agents — all generated from one OpenAPI spec by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen).
 
-> TypeScript, Python, PHP, Golang, Lua, C, JavaScript SDKs, a CLI with an interactive REPL, and an MCP server for AI agents — all generated from one OpenAPI spec by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen).
-
-> **Features:** `debug`, `idempotency`, `metrics`, `paging`, `ratelimit`, `retry`, `test`, `timeout` — opt-in,
+> **Features:** `debug`, `idempotency`, `metrics`, `paging`, `ratelimit`, `retry`, `station`, `test`, `timeout` — opt-in,
 > inactive until switched on, and configured per client. See the Features
 > section of any SDK README below for what each one does.
 
@@ -52,9 +50,8 @@ const client = NotionSDK.test({
   },
 })
 const database = await client.Database().load({ id: 'test01' })
-// database is the Database entity, populated with mock data
-// — call database.data() for the record itself
-console.log(database)
+// database is the Database entity; .data() reads its mock record
+console.log(database.data())
 ```
 
 ### Python
@@ -62,7 +59,7 @@ console.log(database)
 ```python
 client = NotionSDK.test()
 database = client.Database().load({"id": "test01"})
-print(database)
+print(database.data_get())
 ```
 
 ### PHP
@@ -84,6 +81,16 @@ result, err := client.Database(nil).Load(
 )
 ```
 
+### Ruby
+
+```ruby
+# Seed fixture data so offline calls resolve without a live server.
+client = NotionSDK.test({
+  "entity" => { "database" => { "test01" => { "id" => "test01" } } },
+})
+database = client.Database.load({ "id" => "test01" })
+```
+
 ### Lua
 
 ```lua
@@ -99,8 +106,10 @@ local result, err = client:Database():load({ id = "test01" })
 NotionSDK* client = test_sdk(NULL, NULL);
 PNError* err = NULL;
 Entity* database = notion_database(client, NULL);
-voxgig_value* database_rec = database->vt->load(database, cmap(1, "id", v_str("test01")), NULL, &err);
-printf("%s\n", voxgig_to_json(database_rec));
+Entity* result = database->vt->load(database, cmap(1, "id", v_str("test01")), NULL, &err);
+if (result) {
+    printf("%s\n", voxgig_to_json(result->vt->data(result, NULL)));
+}
 ```
 
 ### JavaScript
@@ -108,39 +117,41 @@ printf("%s\n", voxgig_to_json(database_rec));
 ```js
 const client = NotionSDK.test()
 const database = await client.Database().load({ id: 'test01' })
-// database is the entity, populated with mock data
-// — call database.data() for the record itself
-console.log(database)
+// database is the Database entity; .data() reads its mock record
+console.log(database.data())
 ```
 
 ## Packages
 
 | Language | Package | Install |
 | --- | --- | --- |
-| TypeScript | `@voxgig-sdk/notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
-| Python | `voxgig-sdk-notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
-| PHP | `voxgig-sdk/notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
+| TypeScript | `@voxgig-sdk/notion-sdk` | publish pending — [install from source](ts/README.md#install) |
+| Python | `voxgig-sdk-notion-sdk` | publish pending — [install from source](py/README.md#install) |
+| PHP | `voxgig-sdk/notion-sdk` | publish pending — [install from source](php/README.md#install) |
 | Golang | `github.com/voxgig-sdk/notion-sdk/go` | `go get github.com/voxgig-sdk/notion-sdk/go@latest` |
-| Lua | `voxgig-sdk-notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
-| C | `voxgig-sdk-notion` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
-| JavaScript | `@voxgig-sdk/notion-js` | publish pending — [install from git tag](https://github.com/voxgig-sdk/notion-sdk/tags) |
-| Go CLI | `github.com/voxgig-sdk/notion-sdk/go-cli` | `go install github.com/voxgig-sdk/notion-sdk/go-cli/cmd/notion@latest` |
-| Go MCP server | `github.com/voxgig-sdk/notion-sdk/go-mcp` | `go get github.com/voxgig-sdk/notion-sdk/go-mcp@latest` |
+| Ruby | `voxgig-sdk-notion-sdk` | publish pending — [install from source](rb/README.md#install) |
+| Lua | `voxgig-sdk-notion-sdk` | publish pending — [install from source](lua/README.md#install) |
+| C | `voxgig-sdk-notion-sdk` | publish pending — [install from source](c/README.md#install) |
+| JavaScript | `@voxgig-sdk/notion-sdk-js` | publish pending — [install from source](js/README.md#install) |
+| Go CLI | `github.com/voxgig-sdk/notion-sdk/go-cli` | build from source — [go-cli/README.md](go-cli/README.md) |
+| Go MCP server | `github.com/voxgig-sdk/notion-sdk/go-mcp` | build from source — [go-mcp/README.md](go-mcp/README.md) |
 
 ## Quickstart
 
 ### TypeScript
 
 ```ts
-import { NotionSDK } from '@voxgig-sdk/notion'
+import { NotionSDK } from '@voxgig-sdk/notion-sdk'
 
 const client = new NotionSDK({
   apikey: process.env.NOTION_APIKEY,
 })
 
-// Load database data (returns a Database)
-const database = await client.Database().load()
-console.log(database)
+// Load a specific database (returns the entity, a DatabaseEntity)
+const database = await client.Database().load({
+  id: 'example_id',
+})
+console.log(database.data())
 ```
 
 See the [TypeScript README](ts/README.md) for the full guide.
@@ -149,15 +160,16 @@ See the [TypeScript README](ts/README.md) for the full guide.
 
 | Surface | Path |
 | --- | --- |
-| **SDK** (TypeScript, Python, PHP, Golang, Lua, C, JavaScript) | `ts/` `py/` `php/` `go/` `lua/` `c/` `js/` |
+| **SDK** (TypeScript, Python, PHP, Golang, Ruby, Lua, C, JavaScript) | `ts/` `py/` `php/` `go/` `rb/` `lua/` `c/` `js/` |
 | **CLI** | `go-cli/` |
 | **MCP server** | `go-mcp/` |
 
 ## Use it from an AI agent (MCP)
 
-The generated MCP server exposes every operation in this SDK as an
-[MCP](https://modelcontextprotocol.io) tool that Claude, Cursor or Cline
-can call directly. Build and register it:
+The generated MCP server exposes this SDK's load operations as
+[MCP](https://modelcontextprotocol.io) tools that Claude, Cursor or Cline
+can call directly. It only reads: create, update, patch and remove become tools when the SDK's model sets
+`main: kit: target: 'go-mcp': tool: write: true`. Build and register it:
 
 ```bash
 cd go-mcp && go build -o notion-mcp .
@@ -200,9 +212,9 @@ client = NotionSDK({
 })
 
 
-# Load a specific database (returns the record, raises on error)
+# Load a specific database (returns the entity, raises on error)
 database = client.Database().load({"id": "example_id"})
-print(database)
+print(database.data_get())
 ```
 
 ### PHP
@@ -216,7 +228,7 @@ $client = new NotionSDK([
 ]);
 
 
-// Load a specific database (returns the ENTITY; call data_get() for the record; throws on error)
+// Load a specific database (returns the entity; data_get() reads its record; throws on error)
 $database = $client->Database()->load(["id" => "example_id"]);
 print_r($database->data_get());
 ```
@@ -230,27 +242,44 @@ client := sdk.NewNotionSDK(map[string]any{
     "apikey": os.Getenv("NOTION_APIKEY"),
 })
 
-// Load database data
+// Load a specific database (returns the entity; err is non-nil on failure)
 database, err := client.Database(nil).Load(map[string]any{"id": "example_id"}, nil)
 if err != nil {
     panic(err)
 }
-fmt.Println(database)
+fmt.Println(database.(sdk.Entity).Data())
+```
+
+### Ruby
+
+```ruby
+require_relative "Notion_sdk"
+
+client = NotionSDK.new({
+  "apikey" => ENV["NOTION_APIKEY"],
+})
+
+
+# Load a specific database (returns the entity; data_get reads its record; raises on error)
+database = client.Database.load({ "id" => "example_id" })
+puts database.data_get
 ```
 
 ### Lua
 
 ```lua
 local sdk = require("notion_sdk")
+local json = require("dkjson")
 
 local client = sdk.new({
   apikey = os.getenv("NOTION_APIKEY"),
 })
 
 
--- Load a specific database
+-- Load a specific database (returns the entity; err on failure)
 local database, err = client:Database():load({ id = "example_id" })
-print(database)
+if err then error(err) end
+print(json.encode(database:data_get()))
 ```
 
 ### C
@@ -264,20 +293,27 @@ PNError* err = NULL;
 
 
 Entity* database = notion_database(client, NULL);
-// Load a specific database (returns the record, sets *err on failure)
-voxgig_value* database_rec = database->vt->load(database, cmap(1, "id", v_str("example_id")), NULL, &err);
-printf("%s\n", voxgig_to_json(database_rec));
+// Load a specific database (returns the entity, sets *err on failure)
+Entity* loaded = database->vt->load(database, cmap(1, "id", v_str("example_id")), NULL, &err);
+if (loaded) {
+    printf("%s\n", voxgig_to_json(loaded->vt->data(loaded, NULL)));
+}
 ```
 
 ### JavaScript
 
 ```js
-const { NotionSDK } = require('@voxgig-sdk/notion-js')
+const { NotionSDK } = require('@voxgig-sdk/notion-sdk-js')
 
 const client = new NotionSDK({
   apikey: process.env.NOTION_APIKEY,
 })
 
+// Load a specific database (returns the entity)
+const database = await client.Database().load({
+  id: 'example_id',
+})
+console.log(database.data())
 ```
 
 ## Direct and prepare
@@ -303,10 +339,9 @@ const result = await client.direct({
   method: 'GET',
   params: { id: 'example' },
 })
-if (result instanceof Error) {
-  throw result
+if (result.ok) {
+  console.log(result.data)
 }
-console.log(result.data)
 ```
 
 **Python:**
@@ -340,6 +375,15 @@ if err != nil {
 fmt.Println(result)
 ```
 
+**Ruby:**
+```ruby
+result = client.direct({
+  "path" => "/api/resource/{id}",
+  "method" => "GET",
+  "params" => { "id" => "example" },
+})
+```
+
 **Lua:**
 ```lua
 local result, err = client:direct({
@@ -365,10 +409,9 @@ const result = await client.direct({
   method: 'GET',
   params: { id: 'example' },
 })
-if (result instanceof Error) {
-  throw result
+if (result.ok) {
+  console.log(result.data)
 }
-console.log(result.data)
 ```
 
 ## Advanced
@@ -392,14 +435,15 @@ forking the SDK.
 
 | Feature | Purpose |
 | --- | --- |
-| **DebugFeature** | Request/response capture ring buffer for debugging |
-| **IdempotencyFeature** | Idempotency keys for safe retries of mutating operations |
-| **MetricsFeature** | Statistics capture: per-operation counters and latency |
-| **PagingFeature** | Pagination signals for list operations |
-| **RatelimitFeature** | Client-side rate limiting via a token bucket |
-| **RetryFeature** | Automatic retry of transient failures with exponential backoff |
-| **TestFeature** | In-memory mock transport for testing without a live server |
-| **TimeoutFeature** | Per-request timeout with transport abort |
+| **DebugFeature** | Debug capture |
+| **IdempotencyFeature** | Idempotency |
+| **MetricsFeature** | Metrics |
+| **PagingFeature** | Paging |
+| **RatelimitFeature** | Rate limiting |
+| **RetryFeature** | Retry |
+| **StationFeature** | Station control surface binding for outbound integrations |
+| **TestFeature** | Test transport |
+| **TimeoutFeature** | Timeout |
 
 Pass custom features via the `extend` option at construction time.
 
@@ -417,10 +461,12 @@ customizable without forking any upstream tool:
 - **Templates** (`.sdk/tm/`) and **components** (`.sdk/src/cmp/`) are
   the two layers of generation, copied into this repo: templates are the
   literal per-language source, components generate the API-shaped parts.
-- **Regeneration merges.** By default, newly generated content is
-  three-way merged into existing files, so generator updates and local
-  edits usually converge without manual conflict handling. A project can
-  opt for plain overwrite instead.
+- **Regeneration overwrites.** Each run rewrites every generated file from
+  the model, the templates and the components, so an edit made to
+  generated output is lost. Say what this project needs in its own model
+  (`.sdk/model/sdk.aontu`), or extend a target with a component of its
+  own in `.sdk/src/cmp/<target>/`, registered with `registerComponent`,
+  which `voxgig-sdkgen doctor` reports as an addition rather than drift.
 - **Custom features and entire custom targets** arrive through sdkgen
   packages (`voxgig-sdkgen package add`), on the same rails as the
   bundled languages, and `voxgig-sdkgen doctor` reports any drift from
@@ -435,6 +481,7 @@ The full story: [voxgig.com/sdk/custom](https://voxgig.com/sdk/custom).
 - [Python](py/README.md)
 - [PHP](php/README.md)
 - [Golang](go/README.md)
+- [Ruby](rb/README.md)
 - [Lua](lua/README.md)
 - [C](c/README.md)
 - [JavaScript](js/README.md)

@@ -145,6 +145,21 @@ class NotionConfig
           'strict' => false,
           'transport' => 'wrap',
         ],
+                "station" => [
+          'options' => [
+            'active' => false,
+            'capture' => 'meta',
+            'fromEnv' => true,
+            'instance' => '',
+            'profile' => '',
+            'register' => true,
+            'secret' => '',
+            'url' => '',
+          ],
+          'optspec' => [],
+          'strict' => false,
+          'transport' => 'wrap',
+        ],
                 "test" => [
           'options' => [
             'active' => false,
@@ -163,6 +178,7 @@ class NotionConfig
           ],
           'optspec' => [
             'clearTimer' => '`$FUNCTION`',
+            'now' => '`$FUNCTION`',
             'setTimer' => '`$FUNCTION`',
           ],
           'strict' => false,
@@ -187,49 +203,56 @@ class NotionConfig
           'fields' => [
             [
               'name' => 'created_time',
+              'title' => 'Created Time',
               'type' => '`$STRING`',
             ],
             [
               'name' => 'id',
+              'title' => 'Id',
               'type' => '`$STRING`',
             ],
             [
               'name' => 'last_edited_time',
+              'title' => 'Last Edited Time',
               'type' => '`$STRING`',
             ],
             [
               'name' => 'object',
+              'title' => 'Object',
               'type' => '`$STRING`',
             ],
             [
               'name' => 'parent',
+              'title' => 'Parent',
+              'type' => '`$OBJECT`',
               'op' => [
                 'create' => [
                   'req' => true,
                   'type' => '`$OBJECT`',
                 ],
               ],
-              'type' => '`$OBJECT`',
             ],
             [
               'name' => 'properties',
+              'title' => 'Properties',
+              'type' => '`$OBJECT`',
               'op' => [
                 'create' => [
                   'req' => true,
                   'type' => '`$OBJECT`',
                 ],
               ],
-              'type' => '`$OBJECT`',
             ],
             [
               'name' => 'title',
+              'title' => 'Title',
+              'type' => '`$ARRAY`',
               'op' => [
                 'create' => [
                   'req' => true,
                   'type' => '`$ARRAY`',
                 ],
               ],
-              'type' => '`$ARRAY`',
             ],
           ],
           'id' => [
@@ -243,7 +266,6 @@ class NotionConfig
               'name' => 'create',
               'points' => [
                 [
-                  'args' => [],
                   'kind' => 'http',
                   'method' => 'POST',
                   'orig' => '/databases',
@@ -252,13 +274,19 @@ class NotionConfig
                       'lit' => 'databases',
                     ],
                   ],
-                  'select' => [],
+                  'parts' => [
+                    'databases',
+                  ],
+                  'rename' => [],
                   'transform' => [
                     'req' => '`reqdata`',
                     'res' => '`body`',
                   ],
-                  'parts' => [
-                    'databases',
+                  'args' => [],
+                  'select' => [],
+                  'response' => [
+                    'kind' => 'json',
+                    'media' => 'application/json',
                   ],
                 ],
               ],
@@ -268,17 +296,6 @@ class NotionConfig
               'name' => 'load',
               'points' => [
                 [
-                  'args' => [
-                    'params' => [
-                      [
-                        'kind' => 'param',
-                        'name' => 'id',
-                        'orig' => 'id',
-                        'reqd' => true,
-                        'type' => '`$STRING`',
-                      ],
-                    ],
-                  ],
                   'kind' => 'http',
                   'method' => 'GET',
                   'orig' => '/databases/{id}',
@@ -290,18 +307,34 @@ class NotionConfig
                       'var' => 'id',
                     ],
                   ],
+                  'parts' => [
+                    'databases',
+                    '{id}',
+                  ],
+                  'rename' => [],
+                  'transform' => [
+                    'req' => '`reqdata`',
+                    'res' => '`body`',
+                  ],
+                  'args' => [
+                    'params' => [
+                      [
+                        'name' => 'id',
+                        'orig' => 'id',
+                        'type' => '`$STRING`',
+                        'kind' => 'param',
+                        'reqd' => true,
+                      ],
+                    ],
+                  ],
                   'select' => [
                     'exist' => [
                       'id',
                     ],
                   ],
-                  'transform' => [
-                    'req' => '`reqdata`',
-                    'res' => '`body`',
-                  ],
-                  'parts' => [
-                    'databases',
-                    '{id}',
+                  'response' => [
+                    'kind' => 'json',
+                    'media' => 'application/json',
                   ],
                 ],
               ],
@@ -311,17 +344,6 @@ class NotionConfig
               'name' => 'update',
               'points' => [
                 [
-                  'args' => [
-                    'params' => [
-                      [
-                        'kind' => 'param',
-                        'name' => 'id',
-                        'orig' => 'id',
-                        'reqd' => true,
-                        'type' => '`$STRING`',
-                      ],
-                    ],
-                  ],
                   'kind' => 'http',
                   'method' => 'PATCH',
                   'orig' => '/databases/{id}',
@@ -333,18 +355,34 @@ class NotionConfig
                       'var' => 'id',
                     ],
                   ],
+                  'parts' => [
+                    'databases',
+                    '{id}',
+                  ],
+                  'rename' => [],
+                  'transform' => [
+                    'req' => '`reqdata`',
+                    'res' => '`body`',
+                  ],
+                  'args' => [
+                    'params' => [
+                      [
+                        'name' => 'id',
+                        'orig' => 'id',
+                        'type' => '`$STRING`',
+                        'kind' => 'param',
+                        'reqd' => true,
+                      ],
+                    ],
+                  ],
                   'select' => [
                     'exist' => [
                       'id',
                     ],
                   ],
-                  'transform' => [
-                    'req' => '`reqdata`',
-                    'res' => '`body`',
-                  ],
-                  'parts' => [
-                    'databases',
-                    '{id}',
+                  'response' => [
+                    'kind' => 'json',
+                    'media' => 'application/json',
                   ],
                 ],
               ],
@@ -358,43 +396,50 @@ class NotionConfig
           'fields' => [
             [
               'name' => 'archived',
+              'title' => 'Archived',
               'type' => '`$BOOLEAN`',
             ],
             [
               'name' => 'created_time',
+              'title' => 'Created Time',
               'type' => '`$STRING`',
             ],
             [
               'name' => 'id',
+              'title' => 'Id',
               'type' => '`$STRING`',
             ],
             [
               'name' => 'last_edited_time',
+              'title' => 'Last Edited Time',
               'type' => '`$STRING`',
             ],
             [
               'name' => 'object',
+              'title' => 'Object',
               'type' => '`$STRING`',
             ],
             [
               'name' => 'parent',
+              'title' => 'Parent',
+              'type' => '`$OBJECT`',
               'op' => [
                 'create' => [
                   'req' => true,
                   'type' => '`$OBJECT`',
                 ],
               ],
-              'type' => '`$OBJECT`',
             ],
             [
               'name' => 'properties',
+              'title' => 'Properties',
+              'type' => '`$OBJECT`',
               'op' => [
                 'create' => [
                   'req' => true,
                   'type' => '`$OBJECT`',
                 ],
               ],
-              'type' => '`$OBJECT`',
             ],
           ],
           'id' => [
@@ -408,7 +453,6 @@ class NotionConfig
               'name' => 'create',
               'points' => [
                 [
-                  'args' => [],
                   'kind' => 'http',
                   'method' => 'POST',
                   'orig' => '/pages',
@@ -417,13 +461,19 @@ class NotionConfig
                       'lit' => 'pages',
                     ],
                   ],
-                  'select' => [],
+                  'parts' => [
+                    'pages',
+                  ],
+                  'rename' => [],
                   'transform' => [
                     'req' => '`reqdata`',
                     'res' => '`body`',
                   ],
-                  'parts' => [
-                    'pages',
+                  'args' => [],
+                  'select' => [],
+                  'response' => [
+                    'kind' => 'json',
+                    'media' => 'application/json',
                   ],
                 ],
               ],
@@ -433,17 +483,6 @@ class NotionConfig
               'name' => 'load',
               'points' => [
                 [
-                  'args' => [
-                    'params' => [
-                      [
-                        'kind' => 'param',
-                        'name' => 'id',
-                        'orig' => 'id',
-                        'reqd' => true,
-                        'type' => '`$STRING`',
-                      ],
-                    ],
-                  ],
                   'kind' => 'http',
                   'method' => 'GET',
                   'orig' => '/pages/{id}',
@@ -455,18 +494,34 @@ class NotionConfig
                       'var' => 'id',
                     ],
                   ],
+                  'parts' => [
+                    'pages',
+                    '{id}',
+                  ],
+                  'rename' => [],
+                  'transform' => [
+                    'req' => '`reqdata`',
+                    'res' => '`body`',
+                  ],
+                  'args' => [
+                    'params' => [
+                      [
+                        'name' => 'id',
+                        'orig' => 'id',
+                        'type' => '`$STRING`',
+                        'kind' => 'param',
+                        'reqd' => true,
+                      ],
+                    ],
+                  ],
                   'select' => [
                     'exist' => [
                       'id',
                     ],
                   ],
-                  'transform' => [
-                    'req' => '`reqdata`',
-                    'res' => '`body`',
-                  ],
-                  'parts' => [
-                    'pages',
-                    '{id}',
+                  'response' => [
+                    'kind' => 'json',
+                    'media' => 'application/json',
                   ],
                 ],
               ],
@@ -476,17 +531,6 @@ class NotionConfig
               'name' => 'update',
               'points' => [
                 [
-                  'args' => [
-                    'params' => [
-                      [
-                        'kind' => 'param',
-                        'name' => 'id',
-                        'orig' => 'id',
-                        'reqd' => true,
-                        'type' => '`$STRING`',
-                      ],
-                    ],
-                  ],
                   'kind' => 'http',
                   'method' => 'PATCH',
                   'orig' => '/pages/{id}',
@@ -498,18 +542,34 @@ class NotionConfig
                       'var' => 'id',
                     ],
                   ],
+                  'parts' => [
+                    'pages',
+                    '{id}',
+                  ],
+                  'rename' => [],
+                  'transform' => [
+                    'req' => '`reqdata`',
+                    'res' => '`body`',
+                  ],
+                  'args' => [
+                    'params' => [
+                      [
+                        'name' => 'id',
+                        'orig' => 'id',
+                        'type' => '`$STRING`',
+                        'kind' => 'param',
+                        'reqd' => true,
+                      ],
+                    ],
+                  ],
                   'select' => [
                     'exist' => [
                       'id',
                     ],
                   ],
-                  'transform' => [
-                    'req' => '`reqdata`',
-                    'res' => '`body`',
-                  ],
-                  'parts' => [
-                    'pages',
-                    '{id}',
+                  'response' => [
+                    'kind' => 'json',
+                    'media' => 'application/json',
                   ],
                 ],
               ],

@@ -1,0 +1,209 @@
+# Entity: database
+
+main: kit: entity: database: {
+
+  alias: field: {}
+
+  fields: {
+    created_time: {
+      h: "Created Time"
+      n: "created_time"
+      r: false
+      t: "`$STRING`"
+    }
+    id: {
+      h: "Id"
+      n: "id"
+      r: false
+      t: "`$STRING`"
+    }
+    last_edited_time: {
+      h: "Last Edited Time"
+      n: "last_edited_time"
+      r: false
+      t: "`$STRING`"
+    }
+    object: {
+      h: "Object"
+      n: "object"
+      r: false
+      t: "`$STRING`"
+    }
+    parent: {
+      h: "Parent"
+      n: "parent"
+      op: {
+        create: {
+          req: true
+          type: "`$OBJECT`"
+        }
+      }
+      r: false
+      t: "`$OBJECT`"
+    }
+    properties: {
+      h: "Properties"
+      n: "properties"
+      op: {
+        create: {
+          req: true
+          type: "`$OBJECT`"
+        }
+      }
+      r: false
+      t: "`$OBJECT`"
+    }
+    title: {
+      h: "Title"
+      n: "title"
+      op: {
+        create: {
+          req: true
+          type: "`$ARRAY`"
+        }
+      }
+      r: false
+      t: "`$ARRAY`"
+    }
+  }
+
+  id: {
+    field: "id"
+    name: "id"
+  }
+
+  name: "database"
+  op: {
+    create: {
+      name: "create"
+      points: [
+        {
+          bf: [
+            "parent"
+            "properties"
+            "title"
+          ]
+          co: {
+            id: "POST /databases"
+            source: "openapi3"
+            version: 2
+          }
+          m: "POST"
+          o: "/databases"
+          rs: {
+            kind: "json"
+            media: "application/json"
+          }
+          s: [
+            {
+              lit: "databases"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+    load: {
+      name: "load"
+      points: [
+        {
+          co: {
+            id: "GET /databases/{id}"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "id"
+                or: "id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "GET"
+          o: "/databases/{id}"
+          q: {
+            exist: [
+              "id"
+            ]
+          }
+          rs: {
+            kind: "json"
+            media: "application/json"
+          }
+          s: [
+            {
+              lit: "databases"
+            }
+            {
+              var: "id"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+    update: {
+      name: "update"
+      points: [
+        {
+          bf: [
+            "properties"
+            "title"
+          ]
+          co: {
+            id: "PATCH /databases/{id}"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "id"
+                or: "id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "PATCH"
+          o: "/databases/{id}"
+          q: {
+            exist: [
+              "id"
+            ]
+          }
+          rs: {
+            kind: "json"
+            media: "application/json"
+          }
+          s: [
+            {
+              lit: "databases"
+            }
+            {
+              var: "id"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+  }
+
+
+
+}

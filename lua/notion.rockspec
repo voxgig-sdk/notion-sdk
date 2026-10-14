@@ -1,4 +1,4 @@
-package = "voxgig-sdk-notion"
+package = "voxgig-sdk-notion-sdk"
 version = "0.0.1-1"
 source = {
   -- git+https (GitHub dropped git:// in 2022); pin the install to the release
@@ -25,6 +25,7 @@ build = {
     ["config"] = "config.lua",
     ["config_shared"] = "config_shared.lua",
     ["config_plugins"] = "config_plugins.lua",
+    ["schema"] = "schema.lua",
     ["features"] = "features.lua",
     ["feature.base_feature"] = "feature/base_feature.lua",
     ["feature.debug_feature"] = "feature/debug_feature.lua",
@@ -33,6 +34,8 @@ build = {
     ["feature.paging_feature"] = "feature/paging_feature.lua",
     ["feature.ratelimit_feature"] = "feature/ratelimit_feature.lua",
     ["feature.retry_feature"] = "feature/retry_feature.lua",
+    ["feature.station_feature"] = "feature/station_feature.lua",
+    ["feature.station.voxgig_station"] = "feature/station/voxgig_station.lua",
     ["feature.test_feature"] = "feature/test_feature.lua",
     ["feature.timeout_feature"] = "feature/timeout_feature.lua",
   }

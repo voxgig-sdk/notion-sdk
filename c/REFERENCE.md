@@ -111,31 +111,34 @@ Entity* database = notion_database(client, NULL);
 
 ### Operations
 
-#### `vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
 
-Create a new entity with the given data. Returns the created entity data and sets `*err` on failure.
+Create a new entity with the given data. Returns the created entity, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* database = notion_database(client, NULL);
-voxgig_value* result = database->vt->create(database, NULL, NULL, &err);
+Entity* result = database->vt->create(database, NULL, NULL, &err);
 ```
 
-#### `vt->load(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->load(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
-Load a single entity matching the given criteria. Returns the entity data and sets `*err` on failure.
+Load a single entity matching the given criteria. Returns the entity, whose record `vt->data` reads, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* database = notion_database(client, NULL);
-voxgig_value* result = database->vt->load(database, cmap(1, "id", v_str("database_id")), NULL, &err);
+Entity* result = database->vt->load(database, cmap(1, "id", v_str("database_id")), NULL, &err);
+if (result) {
+    printf("%s\n", voxgig_to_json(result->vt->data(result, NULL)));
+}
 ```
 
-#### `vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
 
-Update an existing entity. The data must include the entity id. Returns the updated entity data.
+Update an existing entity. The data must include the entity id. Returns the updated entity, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* database = notion_database(client, NULL);
-voxgig_value* result = database->vt->update(database, cmap(1, "id", v_str("database_id")), NULL, &err);
+Entity* result = database->vt->update(database, cmap(1, "id", v_str("database_id")), NULL, &err);
 ```
 
 ### Common Methods
@@ -191,31 +194,34 @@ Entity* page = notion_page(client, NULL);
 
 ### Operations
 
-#### `vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
 
-Create a new entity with the given data. Returns the created entity data and sets `*err` on failure.
+Create a new entity with the given data. Returns the created entity, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* page = notion_page(client, NULL);
-voxgig_value* result = page->vt->create(page, NULL, NULL, &err);
+Entity* result = page->vt->create(page, NULL, NULL, &err);
 ```
 
-#### `vt->load(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->load(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
-Load a single entity matching the given criteria. Returns the entity data and sets `*err` on failure.
+Load a single entity matching the given criteria. Returns the entity, whose record `vt->data` reads, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* page = notion_page(client, NULL);
-voxgig_value* result = page->vt->load(page, cmap(1, "id", v_str("page_id")), NULL, &err);
+Entity* result = page->vt->load(page, cmap(1, "id", v_str("page_id")), NULL, &err);
+if (result) {
+    printf("%s\n", voxgig_to_json(result->vt->data(result, NULL)));
+}
 ```
 
-#### `vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
 
-Update an existing entity. The data must include the entity id. Returns the updated entity data.
+Update an existing entity. The data must include the entity id. Returns the updated entity, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* page = notion_page(client, NULL);
-voxgig_value* result = page->vt->update(page, cmap(1, "id", v_str("page_id")), NULL, &err);
+Entity* result = page->vt->update(page, cmap(1, "id", v_str("page_id")), NULL, &err);
 ```
 
 ### Common Methods
@@ -243,27 +249,29 @@ Return the entity name.
 
 | Feature | Version | Description |
 | --- | --- | --- |
-| `debug` | 0.0.1 | Request/response capture ring buffer for debugging |
-| `idempotency` | 0.0.1 | Idempotency keys for safe retries of mutating operations |
-| `metrics` | 0.0.1 | Statistics capture: per-operation counters and latency |
-| `paging` | 0.0.1 | Pagination signals for list operations |
-| `ratelimit` | 0.0.1 | Client-side rate limiting via a token bucket |
-| `retry` | 0.0.1 | Automatic retry of transient failures with exponential backoff |
-| `test` | 0.0.1 | In-memory mock transport for testing without a live server |
-| `timeout` | 0.0.1 | Per-request timeout with transport abort |
+| `debug` | 0.0.1 | Debug capture |
+| `idempotency` | 0.0.1 | Idempotency |
+| `metrics` | 0.0.1 | Metrics |
+| `paging` | 0.0.1 | Paging |
+| `ratelimit` | 0.0.1 | Rate limiting |
+| `retry` | 0.0.1 | Retry |
+| `station` | 0.0.1 | Station control surface binding for outbound integrations |
+| `test` | 0.0.1 | Test transport |
+| `timeout` | 0.0.1 | Timeout |
 
 
 Features are activated via the `feature` option:
 
 ```c
 NotionSDK* client = notion_sdk_new(cmap(1,
-    "feature", cmap(8,
+    "feature", cmap(9,
         "debug", cmap(1, "active", v_bool(true)),
         "idempotency", cmap(1, "active", v_bool(true)),
         "metrics", cmap(1, "active", v_bool(true)),
         "paging", cmap(1, "active", v_bool(true)),
         "ratelimit", cmap(1, "active", v_bool(true)),
         "retry", cmap(1, "active", v_bool(true)),
+        "station", cmap(1, "active", v_bool(true)),
         "test", cmap(1, "active", v_bool(true)),
         "timeout", cmap(1, "active", v_bool(true)))
 ));
@@ -281,7 +289,7 @@ transport, and the order you list them in is the order they nest.
 
 #### Ordering
 
-`ratelimit`, `retry`, `timeout` wrap the transport. Each
+`ratelimit`, `retry`, `station`, `timeout` wrap the transport. Each
 wraps whatever is already installed, so **activation order is nesting order**:
 a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
@@ -295,7 +303,7 @@ rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
 
-Request/response capture ring buffer for debugging.
+Debug capture.
 
 **Configuration**
 
@@ -326,7 +334,7 @@ its default unless you name it.
 
 #### `idempotency`
 
-Idempotency keys for safe retries of mutating operations.
+Idempotency.
 
 **Configuration**
 
@@ -357,7 +365,7 @@ its default unless you name it.
 
 #### `metrics`
 
-Statistics capture: per-operation counters and latency.
+Metrics.
 
 **Configuration**
 
@@ -385,7 +393,7 @@ its default unless you name it.
 
 #### `paging`
 
-Pagination signals for list operations.
+Paging.
 
 **Configuration**
 
@@ -420,7 +428,7 @@ its default unless you name it.
 
 #### `ratelimit`
 
-Client-side rate limiting via a token bucket.
+Rate limiting.
 
 **Configuration**
 
@@ -451,7 +459,7 @@ its default unless you name it.
 
 #### `retry`
 
-Automatic retry of transient failures with exponential backoff.
+Retry.
 
 **Configuration**
 
@@ -483,9 +491,37 @@ its default unless you name it.
   sees. See [Ordering](#ordering) above.
 - Inactive by default: leaving it out costs nothing at runtime.
 
+#### `station`
+
+Station control surface binding for outbound integrations.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `capture` | `'meta'` |
+| `fromEnv` | `true` |
+| `instance` | `''` |
+| `profile` | `''` |
+| `register` | `true` |
+| `secret` | `''` |
+| `url` | `''` |
+
+**Usage**
+
+Set `feature.station.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Wraps the transport: its place in the activation order decides what it
+  sees. See [Ordering](#ordering) above.
+- Inactive by default: leaving it out costs nothing at runtime.
+
 #### `test`
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 **Configuration**
 
@@ -516,7 +552,7 @@ its default unless you name it.
 
 #### `timeout`
 
-Per-request timeout with transport abort.
+Timeout.
 
 **Configuration**
 
@@ -528,6 +564,7 @@ Per-request timeout with transport abort.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

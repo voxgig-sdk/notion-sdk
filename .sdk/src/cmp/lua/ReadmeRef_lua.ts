@@ -1,5 +1,5 @@
 
-import { cmp, each, Content, canonToType, canonKey, canonScalarKey, File, isAuthActive, entityIdField, opRequestShape, safeVarName, exampleVarName, luaKey } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonToType, canonKey, canonScalarKey, File, isAuthActive, entityIdField, opRequestShape, safeVarName, exampleVarName, luaKey, targetFeatures, opNeedsAction, bodyNote, listMatchArg } from '@voxgig/sdkgen'
 import { ReadmeRefFeatures } from '@voxgig/sdkgen'
 
 import {
@@ -14,6 +14,7 @@ import {
 // parse).
 function luaLit(type: any, placeholder: string = 'example'): string {
   const k = canonScalarKey(type)
+  if ('NULL' === k) return 'nil'
   if ('INTEGER' === k || 'NUMBER' === k) return '1'
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k || 'OBJECT' === k) return '{}'
@@ -27,27 +28,32 @@ const OP_SIGNATURES: Record<string, { sig: string, returns: string, desc: string
   load: {
     sig: 'load(reqmatch, ctrl) -> any, err',
     returns: 'any, err',
-    desc: 'Load a single entity matching the given criteria.',
+    desc: 'Load a single entity matching the given criteria. Returns the entity, whose record `data_get()` reads, or `nil` and an error on failure.',
   },
   list: {
     sig: 'list(reqmatch, ctrl) -> any, err',
     returns: 'any, err',
-    desc: 'List entities matching the given criteria. Returns an array.',
+    desc: 'List entities matching the given criteria. Returns an array of entities, one per record, or `nil` and an error on failure.',
   },
   create: {
     sig: 'create(reqdata, ctrl) -> any, err',
     returns: 'any, err',
-    desc: 'Create a new entity with the given data.',
+    desc: 'Create a new entity with the given data. Returns the created entity, or `nil` and an error on failure.',
   },
   update: {
     sig: 'update(reqdata, ctrl) -> any, err',
     returns: 'any, err',
-    desc: 'Update an existing entity. The data must include the entity `id`.',
+    desc: 'Update an existing entity. The data must include the entity `id`. Returns the updated entity, or `nil` and an error on failure.',
+  },
+  patch: {
+    sig: 'patch(reqdata, ctrl) -> any, err',
+    returns: 'any, err',
+    desc: 'Change part of an existing entity: only the fields given are sent. The data must include the entity `id`. Returns the patched entity, or `nil` and an error on failure.',
   },
   remove: {
     sig: 'remove(reqmatch, ctrl) -> any, err',
     returns: 'any, err',
-    desc: 'Remove the entity matching the given criteria.',
+    desc: 'Remove the entity matching the given criteria. Returns the entity, marked as deleted, or `nil` and an error on failure.',
   },
 }
 
@@ -57,7 +63,7 @@ const ReadmeRef = cmp(function ReadmeRef(props: any) {
   const { model } = props.ctx$
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  const feature = getModelPath(model, `main.${KIT}.feature`)
+  const feature = targetFeatures(model, target)
 
   const publishedEntities = each(entity).filter((e: any) => e.active !== false)
 
@@ -119,7 +125,6 @@ local client = sdk.test()
 `)
 
 
-    // Entity factory methods
     publishedEntities.map((ent: any) => {
       Content(`#### \`${ent.Name}(data)\`
 
@@ -165,10 +170,9 @@ same parameters as \`direct()\`.
 `)
 
 
-    // Entity reference sections
     publishedEntities.map((ent: any) => {
       const opnames = Object.keys(ent.op || {})
-      const fields = ent.fields || []
+      const fields = Object.values(ent.fields || {})
       // Model-driven id key: null when this entity has no id-like field, in
       // which case load/remove match on no argument and update omits the id.
       const idF = entityIdField(ent)
@@ -196,7 +200,6 @@ local ${eVar} = client:${ent.Name}(nil)
 `)
 
 
-      // Field schema
       if (fields.length > 0) {
         Content(`### Fields
 
@@ -204,9 +207,9 @@ local ${eVar} = client:${ent.Name}(nil)
 | --- | --- | --- | --- |
 `)
         each(fields, (field: any) => {
-          const req = field.req ? 'Yes' : 'No'
-          const desc = field.short || ''
-          Content(`| \`${field.name}\` | \`${canonToType(field.type, target.name)}\` | ${req} | ${desc} |
+          const req = field.r ? 'Yes' : 'No'
+          const desc = field.sh || ''
+          Content(`| \`${field.n}\` | \`${canonToType(field.t, target.name)}\` | ${req} | ${desc} |
 `)
         })
 
@@ -218,7 +221,7 @@ local ${eVar} = client:${ent.Name}(nil)
         if (hasFieldOps) {
           // Only emit columns for operations this entity actually exposes —
           // never advertise a create/update/remove column the entity lacks.
-          const opcols = ['load', 'list', 'create', 'update', 'remove']
+          const opcols = ['load', 'list', 'create', 'update', 'patch', 'remove']
             .filter((op: string) => opnames.includes(op) && ent.op[op]?.active !== false)
           Content(`### Field Usage by Operation
 
@@ -233,7 +236,7 @@ local ${eVar} = client:${ent.Name}(nil)
               if (fop.active === false) return '-'
               return 'Yes'
             })
-            Content(`| \`${field.name}\` | ${cols.join(' | ')} |
+            Content(`| \`${field.n}\` | ${cols.join(' | ')} |
 `)
           })
 
@@ -243,7 +246,6 @@ local ${eVar} = client:${ent.Name}(nil)
       }
 
 
-      // Operation details
       if (opnames.length > 0) {
         Content(`### Operations
 
@@ -259,7 +261,10 @@ ${info.desc}
 
 `)
 
-          // Show example
+          if (opNeedsAction(ent.op[opname])) {
+            return
+          }
+
           if ('load' === opname || 'remove' === opname) {
             // The id key plus every REQUIRED match key (parent path params
             // like page_id) — the same shape the runtime resolves path
@@ -281,7 +286,7 @@ local result, err = client:${ent.Name}():${opname}(${arg})
           }
           else if ('list' === opname) {
             Content(`\`\`\`lua
-local results, err = client:${ent.Name}():list()
+local results, err = client:${ent.Name}():list(${listMatchArg('lua', ent)})
 \`\`\`
 
 `)
@@ -306,10 +311,10 @@ local result, err = client:${ent.Name}():create({
 
 `)
           }
-          else if ('update' === opname) {
+          else if ('update' === opname || 'patch' === opname) {
             // The id key plus every REQUIRED data member — the same shape the
             // runtime validates — then the patch-fields note.
-            const updateItems = opRequestShape(ent, 'update').items
+            const updateItems = opRequestShape(ent, opname).items
               .filter((it: any) => !it.optional || it.name === idF)
               .sort((a: any, b: any) =>
                 (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
@@ -317,18 +322,24 @@ local result, err = client:${ent.Name}():create({
               `  ${luaKey(it.name)} = ${luaLit(it.type,
                 it.name === idF ? ent.name + '_id' : it.name)},\n`).join('')
             Content(`\`\`\`lua
-local result, err = client:${ent.Name}():update({
-${updateLines}  -- Fields to update
+local result, err = client:${ent.Name}():${opname}({
+${updateLines}  -- ${'patch' === opname ? 'Only the fields to change' : 'Fields to update'}
 })
 \`\`\`
 
 `)
           }
+
+          if ('create' === opname || 'update' === opname || 'patch' === opname) {
+            const note = bodyNote(ent.op[opname], {
+              values: 'a string',
+            })
+            if ('' !== note) Content(note)
+          }
         })
       }
 
 
-      // Common methods
       Content(`### Common Methods
 
 #### \`data_get() -> table\`
@@ -360,7 +371,6 @@ Return the entity name.
     })
 
 
-    // Features section
     const activeFeatures = each(feature).filter((f: any) => f.active)
     if (activeFeatures.length > 0) {
       Content(`
@@ -396,9 +406,6 @@ local client = sdk.new({
 \`\`\`
 
 `)
-      // The shared feature reference: options, defaults, usage and the
-      // considerations. Model facts, identical in every target, so they are
-      // written once in cmp/ReadmeRefFeatures.ts rather than here.
       ReadmeRefFeatures({ target })
     }
 

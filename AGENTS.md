@@ -12,7 +12,7 @@ There are companion guides deeper in the tree: one per language
 
 ## Project map
 
-**Targets** (9):
+**Targets** (10):
 
 | Target | Directory | Build guide |
 | --- | --- | --- |
@@ -24,15 +24,33 @@ There are companion guides deeper in the tree: one per language
 | `lua` | `lua/` | [`lua/AGENTS.md`](./lua/AGENTS.md) |
 | `php` | `php/` | [`php/AGENTS.md`](./php/AGENTS.md) |
 | `py` | `py/` | [`py/AGENTS.md`](./py/AGENTS.md) |
+| `rb` | `rb/` | [`rb/AGENTS.md`](./rb/AGENTS.md) |
 | `ts` | `ts/` | [`ts/AGENTS.md`](./ts/AGENTS.md) |
 
-**Features** (8): `debug`, `idempotency`, `metrics`, `paging`, `ratelimit`, `retry`, `test`, `timeout`.
+**Features** (9): `debug`, `idempotency`, `metrics`, `paging`, `ratelimit`, `retry`, `station`, `test`, `timeout`.
 
 Each feature is generated into every SDK target — as a directory
 `<lang>/src/feature/<name>/` (ts/js) or a flat file in the `<lang>/feature/`
 package (other languages). Each target's guide documents its features.
 
 **Entities** (2): `Database`, `Page`.
+
+**Station**: this SDK is a
+[voxgig/station](https://github.com/voxgig/station) plugin (the
+`station` feature, off by default). An application's outbound
+integrations are **declared in `station.json`** at its repo root —
+to learn what the application talks to, read that file: every SDK
+instance (`sdk`), per-api default (`api`), feature setting, and
+egress policy is declared there, and never a credential value.
+`station.sdk('<name>')` builds a declared instance on first ask;
+`station.instances()` lists them. Bound to an open `Station`,
+the credential is resolved by sekreto under the instance's secret name
+and injected at the transport seam — `options()` and
+`prepare()` output hold only a placeholder, so both are safe to
+inspect and log. `station.tap(...)`/`station.events()` show live
+traffic; `station.plugins()` lists live descriptors. See the "Use
+with Station" README section and `src/feature/station/` (or the
+target's feature container) for the generated adapter.
 
 ## Generating and updating the SDK
 
@@ -105,11 +123,11 @@ npm run build && npm run generate
 
 To author a **new** feature:
 
-1. Define its model at `.sdk/model/feature/<name>.aon` — `name: key()`,
+1. Define its model at `.sdk/model/feature/<name>.aontu` — `name: key()`,
    `title`, `version`, `active`, `config.options.active`, a `hook`
    map (`<Stage>: active: true`), and per-language `deps`.
-2. Register it in `.sdk/model/feature/feature-index.aon` with
-   `@"<name>.aon"`.
+2. Register it in `.sdk/model/feature/feature-index.aontu` with
+   `@"<name>.aontu"`.
 3. Provide the per-language runtime under that target's feature template dir
    (`.sdk/tm/<lang>/src/feature/<name>/` for ts/js, `.sdk/tm/<lang>/feature/`
    otherwise) — the `FEATURE_Name` / `FEATURE_VERSION` placeholders are
@@ -129,18 +147,18 @@ Each language target is generated from **two layers**:
 
 Placeholders substituted on copy: `ProjectName` (Pascal-case SDK name),
 `GOMODULE` (Go module path), `FEATURE_Name` / `FEATURE_VERSION`, and the
-`$$path$$` interpolation of a model value (such as the name) in `.aon`.
+`$$path$$` interpolation of a model value (such as the name) in `.aontu`.
 
 Propagate a change: edit the template/component → `npm run build` (only
 needed if you touched a component) → `npm run generate`. Target shape and
-deps live in `.sdk/model/target/<lang>.aon`; features in
-`.sdk/model/feature/<name>.aon`.
-## The model language (aontu, `.aon` files)
+deps live in `.sdk/model/target/<lang>.aontu`; features in
+`.sdk/model/feature/<name>.aontu`.
+## The model language (aontu, `.aontu` files)
 
 The model is one structured object assembled by **aontu** (a unification
 engine) from three sources: the API model (entities/operations, from the
 OpenAPI spec via `@voxgig/apidef`), the base schema, and the target/feature
-definitions in `.sdk/model/`. An `.aon` file is a relaxed JSON (jsonic
+definitions in `.sdk/model/`. An `.aontu` file is a relaxed JSON (jsonic
 syntax) with unification semantics:
 
 | Syntax | Meaning |
@@ -150,7 +168,7 @@ syntax) with unification semantics:
 | `*default \| type` | A default value unified against a type (e.g. `*true \| boolean`). |
 | `name: key()` | Bind a field to its map key (so `feature: log: {}` gets `name: 'log'`). |
 | `$$path$$` | Interpolate a model value into a string — e.g. the SDK `name`. |
-| `@"./file.aon"` | Include another fragment (how the index files work). The `./` is required on a local path. |
+| `@"./file.aontu"` | Include another fragment (how the index files work). The `./` is required on a local path. |
 | `x: .y` | Reference another path's value (e.g. `deps: ts: .js`). |
 
 For example, the schema for every feature entry:
@@ -172,7 +190,7 @@ do not "fix" these into literal disjunctions.
 
 ```
 .sdk/
-  model/          the model: target/, feature/, and index .aon files
+  model/          the model: target/, feature/, and index .aontu files
   src/cmp/<lang>/  components — TypeScript that generates API-specific source
   tm/<lang>/       templates — verbatim source copied with placeholders
   dist/            compiled components (npm run build)

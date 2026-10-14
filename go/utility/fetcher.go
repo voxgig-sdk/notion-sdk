@@ -1,16 +1,57 @@
 package utility
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	vs "github.com/voxgig-sdk/notion-sdk/go/utility/struct"
 
 	"github.com/voxgig-sdk/notion-sdk/go/core"
 )
+
+// Proxied clients keyed by proxy URL. A client per request would open a
+// fresh connection every call; a cached one pools like http.DefaultClient.
+var proxyClients sync.Map
+
+func clientFor(fetchdef map[string]any) *http.Client {
+	client := http.DefaultClient
+
+	if proxy, ok := fetchdef["proxy"].(string); ok && proxy != "" {
+		if cached, ok := proxyClients.Load(proxy); ok {
+			client = cached.(*http.Client)
+		} else if proxyURL, perr := url.Parse(proxy); perr == nil {
+			// http.DefaultTransport is a package variable the host program can
+			// replace, and an unchecked assertion on it panics the SDK inside
+			// whatever called it. Clone the real one where it is there, and
+			// build a plain transport where it is not.
+			var transport *http.Transport
+			if def, ok := http.DefaultTransport.(*http.Transport); ok {
+				transport = def.Clone()
+			} else {
+				transport = &http.Transport{}
+			}
+			transport.Proxy = http.ProxyURL(proxyURL)
+			cached, _ := proxyClients.LoadOrStore(proxy, &http.Client{Transport: transport})
+			client = cached.(*http.Client)
+		}
+	}
+
+	// A shallow copy shares the pooled Transport; only CheckRedirect differs.
+	if redirect, ok := fetchdef["redirect"].(string); ok && redirect == "manual" {
+		manual := *client
+		manual.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		client = &manual
+	}
+
+	return client
+}
 
 func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, error) {
 	method, _ := fetchdef["method"].(string)
@@ -19,8 +60,15 @@ func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, 
 	}
 
 	var bodyReader io.Reader
-	if body, ok := fetchdef["body"].(string); ok && body != "" {
-		bodyReader = strings.NewReader(body)
+	switch body := fetchdef["body"].(type) {
+	case string:
+		if body != "" {
+			bodyReader = strings.NewReader(body)
+		}
+	case []byte:
+		bodyReader = bytes.NewReader(body)
+	case io.Reader:
+		bodyReader = body
 	}
 
 	req, err := http.NewRequest(method, fullurl, bodyReader)
@@ -41,37 +89,16 @@ func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, 
 	}
 	// Default User-Agent — Go's net/http defaults to "Go-http-client/1.1"
 	// which some CDNs block. Use a Mozilla-shaped UA unless the caller
-	// already set one.
+	// already set one, and record it with the headers the request sent.
 	if !hasUA {
-		req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; NotionSDK/1.0)")
-	}
-
-	// Honour a proxy annotation on the fetch definition (set by the proxy
-	// feature): route the request through an http.Transport with Proxy set.
-	client := http.DefaultClient
-	if proxy, ok := fetchdef["proxy"].(string); ok && proxy != "" {
-		if proxyURL, perr := url.Parse(proxy); perr == nil {
-			client = &http.Client{
-				Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)},
-			}
+		agent := "Mozilla/5.0 (compatible; NotionSDK/1.0)"
+		req.Header.Set("User-Agent", agent)
+		if headers, ok := fetchdef["headers"].(map[string]any); ok {
+			headers["user-agent"] = agent
 		}
 	}
 
-	// Honour a redirect annotation: "manual" surfaces a 3xx as an ordinary
-	// response instead of auto-following it. In the ts/js targets fetchdef
-	// rides straight into fetch(), where `redirect` is a native option -
-	// this is the same seam for Go's auto-following http.Client. The
-	// station feature sets it under a hosts egress policy, so a Location
-	// off the allowlist cannot pull an automatic credentialed follow-up.
-	if redirect, ok := fetchdef["redirect"].(string); ok && redirect == "manual" {
-		manual := *client
-		manual.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}
-		client = &manual
-	}
-
-	resp, err := client.Do(req)
+	resp, err := clientFor(fetchdef).Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +119,9 @@ func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, 
 	}
 
 	var jsonBody any
-	if len(bodyBytes) > 0 {
-		json.Unmarshal(bodyBytes, &jsonBody)
+	unreadable := false
+	if len(bytes.TrimSpace(bodyBytes)) > 0 {
+		unreadable = json.Unmarshal(bodyBytes, &jsonBody) != nil
 	}
 
 	statusText := resp.Status
@@ -107,6 +135,7 @@ func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, 
 		"headers":    headers,
 		"json":       (func() any)(func() any { return jsonBody }),
 		"body":       string(bodyBytes),
+		"unreadable": unreadable,
 	}, nil
 }
 

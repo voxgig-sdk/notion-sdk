@@ -22,11 +22,6 @@ const Package = cmp(async function Package(props: any) {
 
   const model: Model = ctx$.model
 
-  // PyPI distribution name is namespaced to model.origin (e.g. "voxgig-sdk").
-  // PyPI names can't contain "/", so the parts are hyphen-joined. The import
-  // package (the `${model.name}_sdk/` dir) is unchanged.
-  const ns = model.origin || 'voxgig-sdk'
-  const pkgBase = ns.endsWith('-sdk') ? model.name : `${model.name}-sdk`
   const distName = packageName(model, target.name)
   const { repoUrl, issuesUrl } = repoInfo(model)
   const kw = keywords(model).map((k) => `"${k}"`).join(', ')
@@ -74,6 +69,13 @@ include = ["${model.const.Name.toLowerCase()}_sdk*"]
 # Ship the PEP 561 py.typed marker(s) so the inline type hints reach consumers.
 [tool.setuptools.package-data]
 "*" = ["py.typed"]
+`)
+  })
+
+  // setuptools puts the readme in the sdist but not the reference it links.
+  // A wheel holds only the package, so the sdist is where the docs travel.
+  File({ name: 'MANIFEST.in' }, () => {
+    Content(`include README.md REFERENCE.md
 `)
   })
 })

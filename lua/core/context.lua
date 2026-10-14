@@ -1,5 +1,6 @@
 -- Notion SDK context
 
+local json = require("dkjson")
 local vs = require("utility.struct.struct")
 local Control = require("core.control")
 local Operation = require("core.operation")
@@ -49,7 +50,14 @@ function Context.new(ctxmap, basectx)
     if type(ctrl_raw.explain) == "table" then
       self.ctrl.explain = ctrl_raw.explain
     end
-  elseif basectx ~= nil and basectx.ctrl ~= nil then
+    if ctrl_raw.actor ~= nil then
+      self.ctrl.actor = ctrl_raw.actor
+    end
+    if type(ctrl_raw.paging) == "table" then
+      self.ctrl.paging = ctrl_raw.paging
+    end
+  elseif basectx ~= nil and basectx.ctrl ~= nil
+      and helpers.get_ctx_prop(ctxmap, "opname") == nil then
     self.ctrl = basectx.ctrl
   end
 
@@ -181,7 +189,7 @@ function Context:resolve_op(opname)
   local opcfg = vs.getpath(self.config, "entity." .. entname .. ".op." .. opname)
 
   local input = "match"
-  if opname == "update" or opname == "create" then
+  if opname == "update" or opname == "create" or opname == "patch" then
     input = "data"
   end
 
@@ -207,6 +215,48 @@ end
 
 function Context:make_error(code, msg)
   return NotionError.new(code, msg, self)
+end
+
+
+-- The record a logger or an error dump sees; the live fields stay raw for
+-- the pipeline's own use. Raw here, so clean's snapshot can take it.
+function Context:to_record()
+  return {
+    id = self.id,
+    op = self.op,
+    spec = self.spec,
+    entity = self.entity,
+    result = self.result,
+    response = self.response,
+    meta = self.meta,
+  }
+end
+
+
+-- The serialised context leaves the pipeline, so it is cleaned.
+function Context:to_json()
+  local record = self:to_record()
+  local clean = self.utility ~= nil and self.utility.clean or nil
+  if type(clean) == "function" then
+    record = clean(self, record)
+  end
+  local ok, text = pcall(json.encode, record, {
+    exception = function() return "null" end,
+  })
+  if ok and type(text) == "string" then
+    return text
+  end
+  return json.encode({ id = self.id })
+end
+
+
+function Context:__tostring()
+  return "Context " .. self:to_json()
+end
+
+
+function Context.__tojson(self)
+  return self:to_json()
 end
 
 

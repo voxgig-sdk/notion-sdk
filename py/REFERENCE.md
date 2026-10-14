@@ -114,26 +114,26 @@ database = client.Database()
 
 ### Operations
 
-#### `create(reqdata, ctrl=None) -> dict`
+#### `create(reqdata, ctrl=None) -> DatabaseEntity`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```python
 result = client.Database().create({
 })
 ```
 
-#### `load(reqmatch, ctrl=None) -> dict`
+#### `load(reqmatch, ctrl=None) -> DatabaseEntity`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data_get()` reads, and raises on error.
 
 ```python
 result = client.Database().load({"id": "database_id"})
 ```
 
-#### `update(reqdata, ctrl=None) -> dict`
+#### `update(reqdata, ctrl=None) -> DatabaseEntity`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```python
 result = client.Database().update({
@@ -203,26 +203,26 @@ page = client.Page()
 
 ### Operations
 
-#### `create(reqdata, ctrl=None) -> dict`
+#### `create(reqdata, ctrl=None) -> PageEntity`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```python
 result = client.Page().create({
 })
 ```
 
-#### `load(reqmatch, ctrl=None) -> dict`
+#### `load(reqmatch, ctrl=None) -> PageEntity`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data_get()` reads, and raises on error.
 
 ```python
 result = client.Page().load({"id": "page_id"})
 ```
 
-#### `update(reqdata, ctrl=None) -> dict`
+#### `update(reqdata, ctrl=None) -> PageEntity`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```python
 result = client.Page().update({
@@ -264,14 +264,15 @@ Return the entity name.
 
 | Feature | Version | Description |
 | --- | --- | --- |
-| `debug` | 0.0.1 | Request/response capture ring buffer for debugging |
-| `idempotency` | 0.0.1 | Idempotency keys for safe retries of mutating operations |
-| `metrics` | 0.0.1 | Statistics capture: per-operation counters and latency |
-| `paging` | 0.0.1 | Pagination signals for list operations |
-| `ratelimit` | 0.0.1 | Client-side rate limiting via a token bucket |
-| `retry` | 0.0.1 | Automatic retry of transient failures with exponential backoff |
-| `test` | 0.0.1 | In-memory mock transport for testing without a live server |
-| `timeout` | 0.0.1 | Per-request timeout with transport abort |
+| `debug` | 0.0.1 | Debug capture |
+| `idempotency` | 0.0.1 | Idempotency |
+| `metrics` | 0.0.1 | Metrics |
+| `paging` | 0.0.1 | Paging |
+| `ratelimit` | 0.0.1 | Rate limiting |
+| `retry` | 0.0.1 | Retry |
+| `station` | 0.0.1 | Station control surface binding for outbound integrations |
+| `test` | 0.0.1 | Test transport |
+| `timeout` | 0.0.1 | Timeout |
 
 
 Features are activated via the `feature` option:
@@ -285,6 +286,7 @@ client = NotionSDK({
         "paging": {"active": True},
         "ratelimit": {"active": True},
         "retry": {"active": True},
+        "station": {"active": True},
         "test": {"active": True},
         "timeout": {"active": True},
     },
@@ -303,7 +305,7 @@ transport, and the order you list them in is the order they nest.
 
 #### Ordering
 
-`ratelimit`, `retry`, `timeout` wrap the transport. Each
+`ratelimit`, `retry`, `station`, `timeout` wrap the transport. Each
 wraps whatever is already installed, so **activation order is nesting order**:
 a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
@@ -317,7 +319,7 @@ rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
 
-Request/response capture ring buffer for debugging.
+Debug capture.
 
 **Configuration**
 
@@ -348,7 +350,7 @@ its default unless you name it.
 
 #### `idempotency`
 
-Idempotency keys for safe retries of mutating operations.
+Idempotency.
 
 **Configuration**
 
@@ -379,7 +381,7 @@ its default unless you name it.
 
 #### `metrics`
 
-Statistics capture: per-operation counters and latency.
+Metrics.
 
 **Configuration**
 
@@ -407,7 +409,7 @@ its default unless you name it.
 
 #### `paging`
 
-Pagination signals for list operations.
+Paging.
 
 **Configuration**
 
@@ -442,7 +444,7 @@ its default unless you name it.
 
 #### `ratelimit`
 
-Client-side rate limiting via a token bucket.
+Rate limiting.
 
 **Configuration**
 
@@ -473,7 +475,7 @@ its default unless you name it.
 
 #### `retry`
 
-Automatic retry of transient failures with exponential backoff.
+Retry.
 
 **Configuration**
 
@@ -505,9 +507,37 @@ its default unless you name it.
   sees. See [Ordering](#ordering) above.
 - Inactive by default: leaving it out costs nothing at runtime.
 
+#### `station`
+
+Station control surface binding for outbound integrations.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `capture` | `'meta'` |
+| `fromEnv` | `true` |
+| `instance` | `''` |
+| `profile` | `''` |
+| `register` | `true` |
+| `secret` | `''` |
+| `url` | `''` |
+
+**Usage**
+
+Set `feature.station.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Wraps the transport: its place in the activation order decides what it
+  sees. See [Ordering](#ordering) above.
+- Inactive by default: leaving it out costs nothing at runtime.
+
 #### `test`
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 **Configuration**
 
@@ -538,7 +568,7 @@ its default unless you name it.
 
 #### `timeout`
 
-Per-request timeout with transport abort.
+Timeout.
 
 **Configuration**
 
@@ -550,6 +580,7 @@ Per-request timeout with transport abort.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

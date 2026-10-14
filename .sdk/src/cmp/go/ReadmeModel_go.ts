@@ -1,5 +1,5 @@
 
-import { cmp, each, Content, isAuthActive, entityIdField, entityPrimaryOp, goModule } from '@voxgig/sdkgen'
+import { cmp, each, Content, isAuthActive, entityIdField, entityPrimaryOp, goModule, listMatchArg } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -24,26 +24,23 @@ const ReadmeModel = cmp(function ReadmeModel(props: any) {
   entityList.forEach((e: any) => Object.keys(e.op || {})
     .forEach((o: string) => { if (e.op[o] && e.op[o].active !== false) opUnion.add(o) }))
   const opRowDefs: Record<string, string> = {
-    load: '| `Load` | `(reqmatch, ctrl map[string]any) (any, error)` | Load a single entity by match criteria. |',
-    list: '| `List` | `(reqmatch, ctrl map[string]any) (any, error)` | List entities matching the criteria. |',
-    create: '| `Create` | `(reqdata, ctrl map[string]any) (any, error)` | Create a new entity. |',
-    update: '| `Update` | `(reqdata, ctrl map[string]any) (any, error)` | Update an existing entity. |',
-    remove: '| `Remove` | `(reqmatch, ctrl map[string]any) (any, error)` | Remove an entity. |',
+    load: '| `Load` | `(reqmatch, ctrl map[string]any) (any, error)` | Load a single entity by match criteria, and return it. |',
+    list: '| `List` | `(reqmatch, ctrl map[string]any) (any, error)` | List entities matching the criteria, one per record. |',
+    create: '| `Create` | `(reqdata, ctrl map[string]any) (any, error)` | Create a new entity, and return it. |',
+    update: '| `Update` | `(reqdata, ctrl map[string]any) (any, error)` | Update an existing entity, and return it. |',
+    patch: '| `Patch` | `(reqdata, ctrl map[string]any) (any, error)` | Change part of an existing entity, and return it. |',
+    remove: '| `Remove` | `(reqmatch, ctrl map[string]any) (any, error)` | Remove an entity, and return it marked as deleted. |',
   }
-  const opRows = ['load', 'list', 'create', 'update', 'remove']
+  const opRows = ['load', 'list', 'create', 'update', 'patch', 'remove']
     .filter((o) => opUnion.has(o)).map((o) => opRowDefs[o]).join('\n')
 
-  // Model-driven Result-shape rows: only describe the operations that
-  // actually exist. Record-returning ops (Load/Create/Update/Remove) share
-  // one row; List has its own — never name a missing op.
-  const recordOps = ['load', 'create', 'update', 'remove'].filter((o) => opUnion.has(o))
+  const recordOps = ['load', 'create', 'update', 'patch', 'remove'].filter((o) => opUnion.has(o))
     .map((o) => '`' + o.charAt(0).toUpperCase() + o.slice(1) + '`')
   const resultRows: string[] = []
-  if (recordOps.length) resultRows.push('| ' + recordOps.join(' / ') + ' | the entity record (`map[string]any`) |')
-  if (opUnion.has('list')) resultRows.push('| `List` | a `[]any` of entity records |')
+  if (recordOps.length) resultRows.push('| ' + recordOps.join(' / ') + ' | the entity, whose `Data()` reads its record (`map[string]any`) |')
+  if (opUnion.has('list')) resultRows.push('| `List` | a `[]any` of entities, one per record |')
   const resultShapeRows = resultRows.join('\n')
 
-  // Go module path == repo path on GitHub (org from model.origin).
   const gomodule = goModule(model, target.name)
 
   const apikeyOptionRow = isAuthActive(model)
@@ -57,11 +54,7 @@ const ReadmeModel = cmp(function ReadmeModel(props: any) {
   const firstWithOp = entityList.find((e: any) => entityPrimaryOp(e) != null)
   const firstPrimaryOp = firstWithOp ? entityPrimaryOp(firstWithOp) : null
   const firstEntityName = firstWithOp ? ((firstWithOp as any).Name || 'Entity') : 'Entity'
-  // camelCase Go identifier (never snake_case or flattened lowercase,
-  // never a Go keyword).
   const firstEntityVar = goVarName((firstWithOp as any)?.name || 'entity')
-  // Model-driven id key: null when the example entity has no id-like field, so
-  // the Result-shape illustration passes a nil match.
   const firstIdF = firstWithOp ? entityIdField(firstWithOp) : null
   const firstPrimaryMethod = firstPrimaryOp
     ? firstPrimaryOp.charAt(0).toUpperCase() + firstPrimaryOp.slice(1)
@@ -69,10 +62,9 @@ const ReadmeModel = cmp(function ReadmeModel(props: any) {
   const firstIsMatchOp = 'load' === firstPrimaryOp || 'remove' === firstPrimaryOp
   const firstOpArg = firstIsMatchOp
     ? (firstIdF ? `map[string]any{"${firstIdF}": "example_id"}` : 'nil')
-    : 'map[string]any{/* fields */}'
+    : 'list' === firstPrimaryOp ? listMatchArg('go', firstWithOp)
+      : 'map[string]any{/* fields */}'
 
-  // The Result-shape call illustration, shown only when some entity exposes an
-  // op. A direct()-only SDK (no entity ops) omits it — there is no op to call.
   const resultCallExample = firstPrimaryOp
     ? `Check \`err\` first, then use the value directly (or the typed
 \`...Typed\` variants, which return the entity's model struct and a typed
@@ -80,7 +72,9 @@ slice):
 
     ${firstEntityVar}, err := client.${firstEntityName}(nil).${firstPrimaryMethod}(${firstOpArg}, nil)
     if err != nil { /* handle */ }
-    // ${firstEntityVar} is the returned record
+    // ${'list' === firstPrimaryOp
+    ? `${firstEntityVar} is a []any of entities, one per record`
+    : `${firstEntityVar} is the entity; ${firstEntityVar}.(sdk.Entity).Data() reads its record`}
 
 `
     : ''
@@ -141,8 +135,8 @@ ${opRows}
 
 ### Result shape
 
-Entity operations return \`(value, error)\`. The \`value\` is the
-operation's data **directly** — there is no wrapper:
+Entity operations return \`(value, error)\`. The \`value\` is the entity
+itself — there is no wrapper:
 
 | Operation | \`value\` |
 | --- | --- |
@@ -153,18 +147,17 @@ ${resultCallExample}Only \`Direct()\` returns a response envelope — a \`map[st
 
 `)
 
-  // Entities summary
   Content(`### Entities
 
 `)
   each(entityList, (ent: any) => {
-    const fields = ent.fields || []
+    const fields = Object.values(ent.fields || {})
     const opnames = Object.keys(ent.op || {})
     const ops = ent.op || {}
     const points = each(ops).map((op: any) =>
       op.points ? each(op.points) : []
     ).flat()
-    const path = points.length > 0 ? (points[0] as any).orig || '' : ''
+    const path = points.length > 0 ? (points[0] as any).o || '' : ''
 
     Content(`#### ${ent.Name}
 
@@ -172,7 +165,7 @@ ${resultCallExample}Only \`Direct()\` returns a response envelope — a \`map[st
 | --- | --- |
 `)
     each(fields, (field: any) => {
-      Content(`| \`"${field.name}"\` | ${field.short || ''} |
+      Content(`| \`"${field.n}"\` | ${field.sh || ''} |
 `)
     })
 

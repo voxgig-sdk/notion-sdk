@@ -16,6 +16,8 @@ var NewRatelimitFeatureFunc func() Feature
 
 var NewRetryFeatureFunc func() Feature
 
+var NewStationFeatureFunc func() Feature
+
 var NewTestFeatureFunc func() Feature
 
 var NewTimeoutFeatureFunc func() Feature

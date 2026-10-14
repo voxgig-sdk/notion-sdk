@@ -1,9 +1,16 @@
 
-const HEADER_auth = 'authorization'
+const CRED_name = 'authorization'
 
 const OPTION_apikey = 'apikey'
 
 const NOTFOUND = '__NOTFOUND__'
+
+
+// The client's `auth.name` option, when set, replaces the name the API declares.
+function credName(name) {
+  return 'string' === typeof name && '' !== name ? name.toLowerCase() : CRED_name
+}
+
 
 function prepareAuth(ctx) {
   const utility = ctx.utility
@@ -26,18 +33,25 @@ function prepareAuth(ctx) {
 
   // Public APIs that need no auth omit the options.auth block entirely.
   if (null == options.auth) {
-    delprop(headers, HEADER_auth)
+    delprop(headers, CRED_name)
     return spec
+  }
+
+  const name = credName(options.auth.name)
+
+  // A credential left under the declared name would travel beside the renamed one.
+  if (CRED_name !== name) {
+    delprop(headers, CRED_name)
   }
 
   const apikey = getprop(options, OPTION_apikey, NOTFOUND)
 
   if (NOTFOUND === apikey || null == apikey || '' === apikey) {
-    delprop(headers, HEADER_auth)
+    delprop(headers, name)
   }
   else {
     // Empty prefix (raw apiKey credential) must not add a leading space.
-    setprop(headers, HEADER_auth,
+    setprop(headers, name,
       options.auth.prefix ? options.auth.prefix + ' ' + apikey : apikey)
   }
 

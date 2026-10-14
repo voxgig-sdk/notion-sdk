@@ -1,5 +1,5 @@
 
-import { cmp, each, Content, isAuthActive, packageName, envName, opRequestShape, entityIdField, entityOps, safeVarName, exampleVarName, jsKey, matchArg, idLiteral } from '@voxgig/sdkgen'
+import { cmp, each, Content, isAuthActive, packageName, envName, opRequestShape, entityIdField, entityOps, safeVarName, exampleVarName, jsKey, matchArg, listMatchArg } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -10,23 +10,11 @@ import {
 import { exampleValue } from './utility_js'
 
 
-// A `list()` on a NESTED entity needs its parent path params. The
-// quickstart used to emit `client.Moon().list()` for an entity at
-// `/planet/{planet_id}/moon`, which 404s against a live server from a
-// half-built URL — indistinguishable from "no such record". The model
-// already marks those params `reqd: true`; matchArg renders exactly them.
-function listMatchArg(ent: any): string {
-  const idF = entityIdField(ent)
-  return matchArg('ts', ent, 'list', idF, idLiteral(ent, 'list', idF))
-}
-
-
 const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   const { target, ctx$: { model } } = props
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
 
-  // Find the first published entity for examples
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const ctor = isAuthActive(model)
@@ -47,8 +35,6 @@ const client = ${ctor}
   if (exampleEntity) {
     const eName = nom(exampleEntity, 'Name')
     const article = /^[aeiou]/i.test(eName) ? 'an' : 'a'
-    // ACTIVE ops only — an inactive op generates no method, so an example
-    // calling it would be wrong.
     const opnames = entityOps(exampleEntity)
 
     // Model-driven example fields, in parity with the ts target: derive the
@@ -57,20 +43,13 @@ const client = ${ctor}
     // `idF` is the entity's id-like field name, or null when it has none —
     // then load/remove match on no argument and update omits the id.
     const idF = entityIdField(exampleEntity)
-    // Variable-safe lowercase name (a `Delete` entity must not bind `delete`).
     const eVar = exampleVarName(exampleEntity.name, 'js')
     const exampleFields = (opname: string): string[] => {
-      // ids are rendered separately as the match key for update/remove; a
-      // REQUIRED id stays for create (dropping it makes the payload
-      // incomplete).
       const items = opRequestShape(exampleEntity, opname).items
         .filter((it: any) => (it.name !== idF && it.name !== 'id') ||
           ('create' === opname && !it.optional))
       const required = items.filter((it: any) => !it.optional)
       const optional = items.filter((it: any) => it.optional)
-      // create needs ALL required fields for parity with the typed ts target;
-      // update is a patch, so the required members plus a sample optional
-      // field or two suffice.
       const chosen = 'create' === opname
         ? (required.length ? required : items.slice(0, 2))
         : required.concat(optional).slice(0, Math.max(2, required.length))
@@ -99,7 +78,7 @@ const client = ${ctor}
 
 \`\`\`js
 const ${eVar} = await client.${eName}().load(${matchArg('load')})
-console.log(${eVar})
+console.log(${eVar}.data())
 \`\`\`
 `)
     }
@@ -109,9 +88,9 @@ console.log(${eVar})
 ### List ${eName} Records
 
 \`\`\`js
-const ${eVar}s = await client.${eName}().list(${listMatchArg(exampleEntity)})
+const ${eVar}s = await client.${eName}().list(${listMatchArg('js', exampleEntity)})
 for (const ${eVar} of ${eVar}s) {
-  console.log(${eVar})
+  console.log(${eVar}.data())
 }
 \`\`\`
 `)
@@ -125,7 +104,7 @@ for (const ${eVar} of ${eVar}s) {
 
 \`\`\`js
 const created = await client.${eName}().create({${createBody}})
-console.log(created)
+console.log(created.data())
 \`\`\`
 `)
     }
@@ -140,7 +119,24 @@ console.log(created)
 
 \`\`\`js
 const updated = await client.${eName}().update({${updateBody}})
-console.log(updated)
+console.log(updated.data())
+\`\`\`
+`)
+    }
+
+    if (opnames.includes('patch')) {
+      const patchLines = (idF
+        ? [`  ${idF}: ${exampleValue(exampleEntity, exampleEntity.op && exampleEntity.op.patch, idF, exampleEntity.name + '_id')},`]
+        : []).concat(exampleFields('patch'))
+      const patchBody = patchLines.length ? '\n' + patchLines.join('\n') + '\n' : ''
+      Content(`
+### Patch a ${eName}
+
+Sends only the fields given.
+
+\`\`\`js
+const patched = await client.${eName}().patch({${patchBody}})
+console.log(patched.data())
 \`\`\`
 `)
     }

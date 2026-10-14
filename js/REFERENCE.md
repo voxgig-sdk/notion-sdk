@@ -100,8 +100,10 @@ Make a direct HTTP request to any API endpoint.
 | `fetchargs.headers` | `object` | Request headers (merged with defaults). |
 | `fetchargs.body` | `any` | Request body (objects are JSON-serialized). |
 | `fetchargs.ctrl` | `object` | Control options (e.g. `{ explain: true }`). |
+| `fetchargs.ctrl.signal` | `AbortSignal` | Aborts the request in flight: `ok` is then `false` and `err.code` is `request_aborted`. |
 
-**Returns:** `Promise<{ ok, status, headers, data } | Error>`
+**Returns:** `Promise<{ ok, status, headers, data }>`. On a failure
+`ok` is `false` and `err` holds the error.
 
 #### `prepare(fetchargs?: object)`
 
@@ -115,6 +117,15 @@ same parameters as `direct()`.
 Alias for `NotionSDK.test()`.
 
 **Returns:** `NotionSDK` instance in test mode.
+
+#### Cancelling a call
+
+Every entity operation takes an optional `ctrl` object after its match or
+data, and an `AbortSignal` in `ctrl.signal` cancels the request in flight.
+The operation then rejects with an error whose `code` is
+`request_aborted` and whose `cause` is the signal's reason. A request
+whose signal has already aborted is not sent. `stream()` takes the signal
+as `callopts.signal`, and ends when it aborts.
 
 
 ---
@@ -153,7 +164,7 @@ const database = client.Database()
 
 #### `create(data: object, ctrl?: object)`
 
-Create a new entity with the given data.
+Create a new entity with the given data. Resolves to the created entity.
 
 ```ts
 const result = await client.Database().create({
@@ -162,7 +173,7 @@ const result = await client.Database().create({
 
 #### `load(match: object, ctrl?: object)`
 
-Load a single entity matching the given criteria.
+Load a single entity matching the given criteria. Resolves to the entity, whose record `data()` reads.
 
 ```ts
 const result = await client.Database().load({ id: 'database_id' })
@@ -170,7 +181,7 @@ const result = await client.Database().load({ id: 'database_id' })
 
 #### `update(data: object, ctrl?: object)`
 
-Update an existing entity. The data must include the entity `id`.
+Update an existing entity. The data must include the entity `id`. Resolves to the updated entity.
 
 ```ts
 const result = await client.Database().update({
@@ -241,7 +252,7 @@ const page = client.Page()
 
 #### `create(data: object, ctrl?: object)`
 
-Create a new entity with the given data.
+Create a new entity with the given data. Resolves to the created entity.
 
 ```ts
 const result = await client.Page().create({
@@ -250,7 +261,7 @@ const result = await client.Page().create({
 
 #### `load(match: object, ctrl?: object)`
 
-Load a single entity matching the given criteria.
+Load a single entity matching the given criteria. Resolves to the entity, whose record `data()` reads.
 
 ```ts
 const result = await client.Page().load({ id: 'page_id' })
@@ -258,7 +269,7 @@ const result = await client.Page().load({ id: 'page_id' })
 
 #### `update(data: object, ctrl?: object)`
 
-Update an existing entity. The data must include the entity `id`.
+Update an existing entity. The data must include the entity `id`. Resolves to the updated entity.
 
 ```ts
 const result = await client.Page().update({
@@ -299,14 +310,15 @@ Return a copy of the entity options.
 
 | Feature | Version | Description |
 | --- | --- | --- |
-| `debug` | 0.0.1 | Request/response capture ring buffer for debugging |
-| `idempotency` | 0.0.1 | Idempotency keys for safe retries of mutating operations |
-| `metrics` | 0.0.1 | Statistics capture: per-operation counters and latency |
-| `paging` | 0.0.1 | Pagination signals for list operations |
-| `ratelimit` | 0.0.1 | Client-side rate limiting via a token bucket |
-| `retry` | 0.0.1 | Automatic retry of transient failures with exponential backoff |
-| `test` | 0.0.1 | In-memory mock transport for testing without a live server |
-| `timeout` | 0.0.1 | Per-request timeout with transport abort |
+| `debug` | 0.0.1 | Debug capture |
+| `idempotency` | 0.0.1 | Idempotency |
+| `metrics` | 0.0.1 | Metrics |
+| `paging` | 0.0.1 | Paging |
+| `ratelimit` | 0.0.1 | Rate limiting |
+| `retry` | 0.0.1 | Retry |
+| `station` | 0.0.1 | Station control surface binding for outbound integrations |
+| `test` | 0.0.1 | Test transport |
+| `timeout` | 0.0.1 | Timeout |
 
 
 Features are activated via the `feature` option:
@@ -320,6 +332,7 @@ const client = new NotionSDK({
     paging: { active: true },
     ratelimit: { active: true },
     retry: { active: true },
+    station: { active: true },
     test: { active: true },
     timeout: { active: true },
   }
@@ -338,7 +351,7 @@ transport, and the order you list them in is the order they nest.
 
 #### Ordering
 
-`ratelimit`, `retry`, `timeout` wrap the transport. Each
+`ratelimit`, `retry`, `station`, `timeout` wrap the transport. Each
 wraps whatever is already installed, so **activation order is nesting order**:
 a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
@@ -352,7 +365,7 @@ rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
 
-Request/response capture ring buffer for debugging.
+Debug capture.
 
 **Configuration**
 
@@ -383,7 +396,7 @@ its default unless you name it.
 
 #### `idempotency`
 
-Idempotency keys for safe retries of mutating operations.
+Idempotency.
 
 **Configuration**
 
@@ -414,7 +427,7 @@ its default unless you name it.
 
 #### `metrics`
 
-Statistics capture: per-operation counters and latency.
+Metrics.
 
 **Configuration**
 
@@ -442,7 +455,7 @@ its default unless you name it.
 
 #### `paging`
 
-Pagination signals for list operations.
+Paging.
 
 **Configuration**
 
@@ -477,7 +490,7 @@ its default unless you name it.
 
 #### `ratelimit`
 
-Client-side rate limiting via a token bucket.
+Rate limiting.
 
 **Configuration**
 
@@ -508,7 +521,7 @@ its default unless you name it.
 
 #### `retry`
 
-Automatic retry of transient failures with exponential backoff.
+Retry.
 
 **Configuration**
 
@@ -540,9 +553,37 @@ its default unless you name it.
   sees. See [Ordering](#ordering) above.
 - Inactive by default: leaving it out costs nothing at runtime.
 
+#### `station`
+
+Station control surface binding for outbound integrations.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `capture` | `'meta'` |
+| `fromEnv` | `true` |
+| `instance` | `''` |
+| `profile` | `''` |
+| `register` | `true` |
+| `secret` | `''` |
+| `url` | `''` |
+
+**Usage**
+
+Set `feature.station.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Wraps the transport: its place in the activation order decides what it
+  sees. See [Ordering](#ordering) above.
+- Inactive by default: leaving it out costs nothing at runtime.
+
 #### `test`
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 **Configuration**
 
@@ -573,7 +614,7 @@ its default unless you name it.
 
 #### `timeout`
 
-Per-request timeout with transport abort.
+Timeout.
 
 **Configuration**
 
@@ -585,6 +626,7 @@ Per-request timeout with transport abort.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

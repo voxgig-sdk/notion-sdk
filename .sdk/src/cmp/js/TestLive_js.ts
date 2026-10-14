@@ -1,4 +1,4 @@
-import { cmp, File, Content, entityCollection, envName, serverVariables, serverVarEnv } from '@voxgig/sdkgen'
+import { cmp, File, Content, entityCollection, envName, serverVariables, serverVarEnv, liveHint, pointFacts, liveStrict, liveStrictNote } from '@voxgig/sdkgen'
 import { nom } from '@voxgig/apidef'
 
 const TestLive = cmp(function TestLive(props: any) {
@@ -8,12 +8,19 @@ const TestLive = cmp(function TestLive(props: any) {
     if (entity.active === false) continue
     for (const [op, operation] of Object.entries(entity.op || {}) as any[]) {
       for (const point of operation.points || []) {
-        const facts = point.contract ? JSON.parse(point.contract.json) : {}
+        // Only what the runner reads; see the ts component.
+        const all: any = pointFacts(props.ctx$, point)
+        const facts: any = {
+          live: liveHint(point),
+          security: all.security,
+          securitySource: all.securitySource,
+          responses: all.responses,
+        }
         if (model.main.kit.info?.auth === false) facts.security = []
-        const same = operation.points.filter((p: any) => JSON.stringify(p.select || {}) === JSON.stringify(point.select || {}))
+        const same = operation.points.filter((p: any) => JSON.stringify(p.q || {}) === JSON.stringify(point.q || {}))
         plan.push({ entity: entity.name, accessor: nom(entity, 'Name'), op,
-          id: point.contract?.id || point.method + ' ' + point.orig, contractVersion: point.contract?.version, kind: point.kind, graphql: point.graphql, path: point.orig, method: point.method,
-          action: point.select?.$action, rename: point.rename, args: point.args, facts, reachable: same.length === 1 })
+          id: point.co?.id || point.m + ' ' + point.o, contractVersion: 1, kind: point.k, graphql: point.gq, path: point.o, method: point.m,
+          action: point.q?.$action, rename: point.r, args: point.g, facts, reachable: same.length === 1 })
       }
     }
   }
@@ -24,8 +31,9 @@ const { SDK } = require('..')
 const { runLiveScenarios } = require('./live-scenarios')
 const { loadEnvLocal } = require('./utility')
 loadEnvLocal(__dirname + '/../.env.local')
-test('live operation coverage', { skip: process.env.${envName(model)}_TEST_LIVE !== 'TRUE' }, async () => {
-  await runLiveScenarios(SDK, ${JSON.stringify(plan, null, 2)}, '${envName(model)}', { server: { ${server} }, secret: process.env.${envName(model)}_SECRET })
+${liveStrictNote(liveStrict(model, props.target.name), '//')}
+test('live operation coverage', { skip: process.env.${envName(model)}_TEST_LIVE !== 'TRUE' }, async (t) => {
+  await runLiveScenarios(SDK, ${JSON.stringify(plan, null, 2)}, '${envName(model)}', { server: { ${server} }, secret: process.env.${envName(model)}_SECRET }, { strict: ${liveStrict(model, props.target.name)}, t })
 })
 `))
 })
