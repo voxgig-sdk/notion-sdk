@@ -1,7 +1,7 @@
 // Typed models for the Notion SDK.
 //
-// GENERATED from the API model: main.kit.entity.<e>.fields[] and per-op
-// params (op.<name>.points[].args.params[]). Field/param types come from the
+// GENERATED from the API model: main.kit.entity.<e>.fields{} and per-op
+// params (op.<name>.points[].g.params[]). Field/param types come from the
 // canonical type sentinels via @voxgig/sdkgen canonToType (source of truth:
 // @voxgig/apidef VALID_CANON). Do not edit by hand.
 package entity
@@ -14,13 +14,6 @@ import (
 
 // Database is the typed data model for the database entity.
 type Database struct {
-	CreatedTime *string `json:"created_time,omitempty"`
-	Id *string `json:"id,omitempty"`
-	LastEditedTime *string `json:"last_edited_time,omitempty"`
-	Object *string `json:"object,omitempty"`
-	Parent *map[string]any `json:"parent,omitempty"`
-	Properties *map[string]any `json:"properties,omitempty"`
-	Title *[]any `json:"title,omitempty"`
 }
 
 // DatabaseLoadMatch is the typed request payload for Database.LoadTyped.
@@ -52,13 +45,6 @@ type DatabaseUpdateData struct {
 
 // Page is the typed data model for the page entity.
 type Page struct {
-	Archived *bool `json:"archived,omitempty"`
-	CreatedTime *string `json:"created_time,omitempty"`
-	Id *string `json:"id,omitempty"`
-	LastEditedTime *string `json:"last_edited_time,omitempty"`
-	Object *string `json:"object,omitempty"`
-	Parent *map[string]any `json:"parent,omitempty"`
-	Properties *map[string]any `json:"properties,omitempty"`
 }
 
 // PageLoadMatch is the typed request payload for Page.LoadTyped.

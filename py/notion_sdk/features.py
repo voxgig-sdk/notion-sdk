@@ -7,6 +7,7 @@ from notion_sdk.feature.metrics_feature import NotionMetricsFeature
 from notion_sdk.feature.paging_feature import NotionPagingFeature
 from notion_sdk.feature.ratelimit_feature import NotionRatelimitFeature
 from notion_sdk.feature.retry_feature import NotionRetryFeature
+from notion_sdk.feature.station_feature import NotionStationFeature
 from notion_sdk.feature.test_feature import NotionTestFeature
 from notion_sdk.feature.timeout_feature import NotionTimeoutFeature
 
@@ -19,6 +20,7 @@ _FEATURES = {
     "paging": lambda: NotionPagingFeature(),
     "ratelimit": lambda: NotionRatelimitFeature(),
     "retry": lambda: NotionRetryFeature(),
+    "station": lambda: NotionStationFeature(),
     "test": lambda: NotionTestFeature(),
     "timeout": lambda: NotionTimeoutFeature(),
 }

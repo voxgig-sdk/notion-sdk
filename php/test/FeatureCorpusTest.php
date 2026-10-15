@@ -29,7 +29,7 @@ class FeatureCorpusTest extends TestCase
     // SDK generated without a listed feature still skips, not fails.
 
     // The standard operation names, in the order the runner prefers them.
-    private const FEATURE_CORPUS_OPS = ['load', 'list', 'create', 'update', 'remove'];
+    private const FEATURE_CORPUS_OPS = ['load', 'list', 'create', 'update', 'patch', 'remove'];
 
     private static function corpus(): array
     {
@@ -267,10 +267,56 @@ class FeatureCorpusTest extends TestCase
         $this->assertSame($expect, $actual, $path);
     }
 
+    // Whether the SDK built the feature at all. The activity record is the
+    // wrong probe: most features create theirs on first use, so an idle
+    // client has none and every section but the eager ones read as inert.
+    private static function present($client, string $name): bool
+    {
+        foreach ($client->features ?? [] as $f) {
+            if (($f->name ?? null) === $name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static function record($client, string $name)
     {
         $prop = '_' . $name;
         return $client->$prop ?? null;
+    }
+
+    // The first feature a case composes that this SDK does not generate,
+    // probed as a section's own feature is. Such a case is skipped rather
+    // than failed.
+    private static function missingFeature(array $kase, array &$have): ?string
+    {
+        $spec = $kase['feature'] ?? null;
+        $names = [];
+        if (is_array($spec) && array_is_list($spec)) {
+            foreach ($spec as $f) {
+                if (is_array($f) && is_string($f['name'] ?? null)) {
+                    $names[] = $f['name'];
+                }
+            }
+        } elseif (is_array($spec)) {
+            $names = array_keys($spec);
+            sort($names);
+        }
+        foreach ($names as $name) {
+            if (!is_string($name)) {
+                continue;
+            }
+            if (!array_key_exists($name, $have)) {
+                $have[$name] = self::present(
+                    self::buildClient(['feature' => [['name' => $name, 'active' => true]]]),
+                    $name);
+            }
+            if (!$have[$name]) {
+                return $name;
+            }
+        }
+        return null;
     }
 
     public function testCorpusCarriesAFeatureSection(): void
@@ -310,6 +356,8 @@ class FeatureCorpusTest extends TestCase
                 . 'the corpus (create-sdkgen .sdk/test/feature/) to run these cases');
         }
 
+        $failed = [];
+        $have = [];
         $names = array_keys(self::corpus()['feature'] ?? []);
         sort($names);
         foreach ($names as $name) {
@@ -326,7 +374,10 @@ class FeatureCorpusTest extends TestCase
             // Probed by ACTIVATING it: the feature defaults to inactive, so an
             // idle client never builds it and its absence says nothing.
             $probe = self::buildClient(['feature' => [['name' => $name, 'active' => true]]]);
-            if (null === self::record($probe, $name)) {
+            if (!self::present($probe, $name)) {
+                // The one line every runner prints for an inert section.
+                fwrite(STDERR, sprintf(
+                    "feature.%s: inert (this SDK does not generate the feature)\n", $name));
                 continue;
             }
 
@@ -340,6 +391,16 @@ class FeatureCorpusTest extends TestCase
             foreach ($cases as $raw) {
                 $need = self::tokensUsed($raw);
                 if ($need > count($ops)) {
+                    fwrite(STDERR, sprintf("skip \"%s\": needs %d operations, this SDK offers %d\n",
+                        $raw['name'] ?? '', $need, count($ops)));
+                    continue;
+                }
+
+                $missing = self::missingFeature($raw, $have);
+                if (null !== $missing) {
+                    fwrite(STDERR, sprintf(
+                        "skip \"%s\": needs the %s feature, which this SDK does not generate\n",
+                        $raw['name'] ?? '', $missing));
                     continue;
                 }
 
@@ -348,52 +409,62 @@ class FeatureCorpusTest extends TestCase
                     $tokens['#OP' . ($i + 1)] = $ops[$i]['key'];
                 }
                 $kase = self::resolve($raw, $tokens);
+                $label = (string)($kase['name'] ?? '');
+                $ran++;
 
-                $client = self::buildClient($kase);
-                $label = $kase['name'] ?? '';
+                // Every failing case is reported, not only the first.
+                try {
+                    $client = self::buildClient($kase);
 
-                foreach (($kase['op'] ?? []) as $step) {
-                    $op = $byKey[$step['op']] ?? null;
-                    $this->assertNotNull($op, "$label: no operation {$step['op']}");
-                    $ctrl = $step['ctrl'] ?? [];
-                    $wanterr = $step['err'] ?? null;
+                    foreach (($kase['op'] ?? []) as $step) {
+                        $op = $byKey[$step['op']] ?? null;
+                        $this->assertNotNull($op, "$label: no operation {$step['op']}");
+                        $ctrl = $step['ctrl'] ?? [];
+                        $wanterr = $step['err'] ?? null;
 
-                    try {
-                        self::invoke($client, $op, $ctrl);
-                        $this->assertNull($wanterr,
-                            "$label: {$step['op']} was expected to fail, and did not");
-                    } catch (\PHPUnit\Framework\AssertionFailedError $e) {
-                        throw $e;
-                    } catch (\Throwable $err) {
-                        $this->assertNotNull($wanterr,
-                            "$label: {$step['op']} failed unexpectedly: " . $err->getMessage());
-                        if (is_string($wanterr)) {
-                            // The CODE, not the message: make_error prefixes
-                            // and humanises the text, so matching it would
-                            // pass on any error that mentioned the word.
-                            //
-                            // `sdk_code`, not `code`: Exception::$code is a
-                            // protected int on every PHP throwable, so the
-                            // SDK carries its own string code beside it.
-                            $code = property_exists($err, 'sdk_code') ? $err->sdk_code : null;
-                            $this->assertSame($wanterr, $code,
-                                "$label: wrong error code (" . $err->getMessage() . ')');
+                        try {
+                            self::invoke($client, $op, $ctrl);
+                            $this->assertNull($wanterr,
+                                "$label: {$step['op']} was expected to fail, and did not");
+                        } catch (\PHPUnit\Framework\AssertionFailedError $e) {
+                            throw $e;
+                        } catch (\Throwable $err) {
+                            $this->assertNotNull($wanterr,
+                                "$label: {$step['op']} failed unexpectedly: " . $err->getMessage());
+                            if (is_string($wanterr)) {
+                                // The CODE, not the message: make_error prefixes
+                                // and humanises the text, so matching it would
+                                // pass on any error that mentioned the word.
+                                //
+                                // `sdk_code`, not `code`: Exception::$code is a
+                                // protected int on every PHP throwable, so the
+                                // SDK carries its own string code beside it.
+                                $code = property_exists($err, 'sdk_code') ? $err->sdk_code : null;
+                                $this->assertSame($wanterr, $code,
+                                    "$label: wrong error code (" . $err->getMessage() . ')');
+                            }
                         }
                     }
-                }
 
-                $this->subset(self::record($client, $name), $kase['out'] ?? [],
-                    "$label: _$name");
-                $ran++;
+                    $this->subset(self::record($client, $name), $kase['out'] ?? [],
+                        "$label: _$name");
+                } catch (\Throwable $e) {
+                    $msg = $e->getMessage();
+                    $failed[] = str_starts_with($msg, $label) ? $msg : "$label: $msg";
+                }
             }
 
-            $this->assertGreaterThan(0, $ran, "every feature.$name case was skipped");
             // Say how many ran. A partial run is legitimate (an SDK with one
             // operation skips the cases needing two) but it should be visible
             // rather than inferred from a green tick.
             fwrite(STDERR, sprintf(
                 "feature.%s: ran %d of %d case(s) against %d operation(s)\n",
                 $name, $ran, count($cases), count($ops)));
+            if (0 === $ran) {
+                $failed[] = "every feature.$name case was skipped";
+            }
         }
+
+        $this->assertSame([], $failed, count($failed) . ' feature corpus case(s) failed');
     }
 }

@@ -2,7 +2,7 @@
 import * as Path from 'node:path'
 
 import {
-  cmp, each, deriveEntityNames,
+  cmp, each, deriveEntityNames, entityOps,
   File, Content, Fragment, Slot, goModule, goVersion
 } from '@voxgig/sdkgen'
 
@@ -16,12 +16,6 @@ import {
 } from '@voxgig/apidef'
 
 
-// Published boru/eng/go version. The engine module
-// github.com/boru-lang/boru/eng/go is not yet tagged under the boru path (the
-// eng/go/v0.0.1 tag predates the aql->boru rename and still declares the old
-// aql-lang/aql module path), so we pin a commit pseudo-version. Bump here —
-// to a real eng/go/v<X.Y.Z> once one is published, or a newer pseudo-version —
-// when adopting a newer engine.
 const BORU_ENG_VERSION = 'v0.0.2-0.20260804163932-0d66b55c5110'
 
 // go.sum entries for BORU_ENG_VERSION and its transitive deps. The sibling
@@ -50,54 +44,21 @@ const Main = cmp(function Main(props: any) {
   const { model } = props.ctx$
 
   const org = model.origin || 'voxgig-sdk'
-  // The two names on the next lines are DIFFERENT KINDS of name, and the
-  // adjacency is the trap. `sdkModule` is the Go SDK this CLI imports — a
-  // different target, so it keeps its own name and must NOT follow this
-  // target's alias. `cliModule` is this target itself, so it must.
   const sdkModule = goModule(model, 'go')
   const cliModule = goModule(model, target.name)
 
   const entityMap: any = getModelPath(model, `main.${KIT}.entity`)
-  // Derive each entity's PascalCase `Name` here rather than relying on another
-  // TARGET having run first. This target sets `phase.entity: { active: false }`
-  // (see model/target/go-{cli,mcp}.aon), so create-sdkgen's Root.ts never
-  // calls names() for it — the accessor emitted below used to read `Name` off
-  // objects the `go` target happened to have named as a side effect, which
-  // yields `client.undefined(nil)` whenever this target is generated without
-  // `go`, or before it in target order.
   deriveEntityNames(entityMap)
   const entityNames = Object.keys(entityMap).map(n => n.toLowerCase())
 
   const FRAGMENT = Path.normalize(__dirname + '/../../../src/cmp/go-cli/fragment')
 
-  // .gitignore — build output (dist/), any stray top-level binaries, and
-  // jostraca's bookkeeping.
-  //
-  // `.jostraca/` matters only when this target is generated OUT OF TREE
-  // (`output: path`), which is a mode every target has: jostraca drops its
-  // meta log and a full duplicate of the last generated output at the output
-  // ROOT, and the destination is a different repository that nothing here
-  // puts under version control — so without this line the first regeneration
-  // leaves that repo dirty with hundreds of untracked files. In-tree the SDK
-  // repo's own ignore file already covers it, which is why this was missed:
-  // only `seneca-provider` was ever generated out of tree, and it was the
-  // only target whose ignore file carried the line. The other 21 targets
-  // still do not — see docs/design/seneca-provider-package.md.
   File({ name: '.gitignore' }, () => Content(`/dist/
 /${model.name}-cli
 /go-cli
 .jostraca/
 `))
 
-  // ==========================================================================
-  // README.md — Diátaxis-structured, examples-first usage guide.
-  //
-  // EVERYTHING here is MODEL-DRIVEN: verbs, examples and how-to sections are
-  // gated on whether an active entity actually exposes that op
-  // (op.<name>.active !== false) — never document an operation no entity
-  // supports. The CLI implements three boru words (list / load / update; see
-  // words.fragment.go + runOp).
-  // ==========================================================================
   const bin = `${model.name}-cli`
   const entityList = entityNames.length > 0 ? entityNames.join(' ') : '(none)'
   const entityCount = entityNames.length
@@ -124,19 +85,17 @@ const Main = cmp(function Main(props: any) {
     .map(op => CLI_VERB_ROWS[op])
     .join('\n')
 
-  // First / second active entity for concrete, truthful examples, gated on
-  // the FIRST entity's own ops so an example never shows a verb it lacks.
+  // Concrete examples, each gated on the ops the entity it names can run
+  // without an action, so no example is refused.
   const activeEntityObjs: any[] =
     Object.values(entityMap).filter((e: any) => e && e.active !== false)
   const firstEntityObj: any = activeEntityObjs[0]
   const firstEntity = firstEntityObj
     ? String(firstEntityObj.name).toLowerCase()
     : (entityNames[0] || 'entity')
-  const secondEntity = activeEntityObjs.length > 1
-    ? String(activeEntityObjs[1].name).toLowerCase()
-    : firstEntity
-  const firstOps: any = (firstEntityObj && firstEntityObj.op) || {}
-  const firstHas = (op: string) => !!(firstOps[op] && firstOps[op].active !== false)
+  const hasOp = (entity: any, op: string) => entityOps(entity).includes(op)
+  const firstHas = (op: string) => hasOp(firstEntityObj, op)
+  const otherLister = activeEntityObjs.slice(1).find((e: any) => hasOp(e, 'list'))
   const entityNoun = entityCount === 1 ? 'entity' : 'entities'
   // The best single example expression this SDK can actually run, for the
   // tutorial/REPL walkthroughs (never demonstrates an unsupported op).
@@ -149,7 +108,6 @@ const Main = cmp(function Main(props: any) {
   const cliExampleExpr = exampleOp || '--help'
   const replExampleExpr = exampleOp || '/help'
 
-  // ---- Examples block (up front) -------------------------------------------
   const ex: string[] = []
   ex.push(`# 1. Build a native binary (-> dist/<os>-<arch>/${bin})`)
   ex.push('make build')
@@ -167,8 +125,8 @@ const Main = cmp(function Main(props: any) {
     ex.push(`./${bin} load '{id:1}' ${firstEntity}       # explicit match map`)
   }
   if (firstHas('update')) ex.push(`./${bin} update '{name:"x"}' ${firstEntity}`)
-  if (firstHas('list') && secondEntity !== firstEntity) {
-    ex.push(`./${bin} list ${secondEntity}`)
+  if (null != otherLister) {
+    ex.push(`./${bin} list ${String(otherLister.name).toLowerCase()}`)
   }
   ex.push('')
   ex.push('# 5. Override the API base URL for a single call')
@@ -180,7 +138,6 @@ const Main = cmp(function Main(props: any) {
   ex.push(`${model.name}> /quit`)
   const exampleBlock = ex.join('\n')
 
-  // ---- How-to guides (gated) -----------------------------------------------
   const howtos: string[] = []
   if (firstHas('list')) howtos.push(`### List the records of an entity
 
@@ -406,10 +363,6 @@ replace ${sdkModule} => ../go
   // BORU_ENG_VERSION above.
   File({ name: 'go.sum' }, () => Content(BORU_ENG_GOSUM))
 
-  // Makefile — `make build` for the current machine, `make build-all` to
-  // cross-compile for the three desktop OSes (linux, darwin, windows) on
-  // amd64 + arm64. Every binary is named ${model.name}-cli (+ .exe on windows)
-  // inside its own dist/<os>-<arch>/ folder — no loose top-level binary.
   File({ name: 'Makefile' }, () => Content(`# ${model.name}-cli build. GENERATED by @voxgig/sdkgen go-cli target.
 BINARY := ${model.name}-cli
 DIST := dist
@@ -437,8 +390,6 @@ clean:
 \trm -rf $(DIST) $(BINARY) go-cli
 `))
 
-  // main.go — produced from fragment/main.fragment.go with two Slots
-  // for the prompt label and the entity help line.
   File({ name: 'main.go' }, () => {
     Fragment(
       {
@@ -459,8 +410,6 @@ clean:
     )
   })
 
-  // words.go — produced from fragment/words.fragment.go with a single
-  // Slot that emits one `case "<name>":` per entity.
   File({ name: 'words.go' }, () => {
     Fragment(
       {

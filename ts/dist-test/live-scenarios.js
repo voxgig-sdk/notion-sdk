@@ -40,7 +40,7 @@ function recipeNeeds(value) {
         return [];
     return [...new Set([...(typeof value.from === 'string' ? [value.from] : []), ...Object.values(value).flatMap(recipeNeeds)])];
 }
-async function runLiveScenarios(SDK, plan, envPrefix, liveDefaults = {}) {
+async function runLiveScenarios(SDK, plan, envPrefix, liveDefaults = {}, settle = {}) {
     const transport = (0, live_runner_1.createLiveTransport)();
     const steps = plan.map(point => {
         const hint = point.facts.live || {};
@@ -50,6 +50,13 @@ async function runLiveScenarios(SDK, plan, envPrefix, liveDefaults = {}) {
             excluded: control.skip ? control.reason || 'Excluded by test control' : hint.excluded,
             run: async (ctx) => {
                 transport.enter(ctx);
+                // Every operation point is planned, not only the hinted ones; a hint
+                // only decides whether this file is generated. Absent a recipe there
+                // is no consent to call the operation, so block rather than
+                // synthesize input for it. A strict run fails a blocked step, so an
+                // omission surfaces instead of passing quietly.
+                if (!point.facts.live)
+                    throw new live_runner_1.LiveBlocked('No live recipe: add a live hint for this operation in the guide, or give it an explicit excluded reason');
                 if (point.contractVersion && point.contractVersion !== 1)
                     throw new live_runner_1.LiveBlocked('Unsupported operation contract version');
                 if (point.op === 'remove' || hint.cleanup) {
@@ -64,10 +71,10 @@ async function runLiveScenarios(SDK, plan, envPrefix, liveDefaults = {}) {
                 let input = request.schema ? (0, live_contract_1.synthesizeInput)(request.schema, explicit) : explicit ?? {};
                 for (const kind of ['params', 'query', 'header', 'cookie'])
                     for (const arg of point.args?.[kind] || []) {
-                        if (arg.reqd && input[arg.name] === undefined) {
-                            if (arg.example === undefined)
-                                throw new live_runner_1.LiveBlocked('Missing required argument: ' + arg.name);
-                            input[arg.name] = arg.example;
+                        if (arg.r && input[arg.n] === undefined) {
+                            if (arg.ex === undefined)
+                                throw new live_runner_1.LiveBlocked('Missing required argument: ' + arg.n);
+                            input[arg.n] = arg.ex;
                         }
                     }
                 const role = hint.auth || (point.facts.security?.length === 0 || point.facts.securitySource === 'unspecified' ? 'public' : 'account');
@@ -137,7 +144,7 @@ async function runLiveScenarios(SDK, plan, envPrefix, liveDefaults = {}) {
     });
     const report = await (0, live_runner_1.runLiveSteps)(steps, { delayMs: (0, utility_1.liveDelayMs)(), report: result => console.log('LIVE STEP ' + JSON.stringify(result)) });
     console.log('LIVE SUMMARY ' + JSON.stringify(report));
-    (0, live_runner_1.assertLiveReport)(report);
+    (0, live_runner_1.settleLiveReport)(report, settle);
     return report;
 }
 //# sourceMappingURL=live-scenarios.js.map

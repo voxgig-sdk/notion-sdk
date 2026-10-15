@@ -19,6 +19,31 @@ function TestFeature.new()
 end
 
 
+-- The key a list's response transform
+-- {"`$EACH`", "body", {["`$MERGE`"] = "`.<key>`"}} reads each item's record under.
+local function item_envelope_key(restf)
+  if type(restf) ~= "table" or #restf ~= 3 or restf[1] ~= "`$EACH`" or restf[2] ~= "body" then
+    return nil
+  end
+  local child = restf[3]
+  local merge = type(child) == "table" and child["`$MERGE`"] or nil
+  if type(merge) ~= "string" then
+    return nil
+  end
+  return string.match(merge, "^`%.([^.`$]+)`$")
+end
+
+-- The record the mock keeps: the request data without `$body`, which only the
+-- wire carries.
+local function record(reqdata)
+  if type(reqdata) ~= "table" then return reqdata end
+  local out = {}
+  for k, v in pairs(reqdata) do
+    if k ~= "$body" then out[k] = v end
+  end
+  return out
+end
+
 function TestFeature:init(ctx, options)
   self.client = ctx.client
   self.options = options
@@ -58,6 +83,14 @@ function TestFeature:init(ctx, options)
         return data
       end
       local restf = transform.res
+      local key = item_envelope_key(restf)
+      if key ~= nil and type(data) == "table" then
+        local out = setmetatable({}, getmetatable(data))
+        for i, item in ipairs(data) do
+          out[i] = { [key] = item }
+        end
+        return out
+      end
       if type(restf) ~= "string" then
         return data
       end
@@ -144,7 +177,7 @@ function TestFeature:init(ctx, options)
       local out = vs.clone(found)
       return respond(200, out, nil)
 
-    elseif op.name == "update" then
+    elseif op.name == "update" or op.name == "patch" then
       -- Match the existing entity by id only (or its alias). reqdata also
       -- contains the new field values, which would otherwise cause select
       -- to filter out the entity we want to update. When reqdata has no id,
@@ -167,21 +200,12 @@ function TestFeature:init(ctx, options)
       local args = test_self:build_args(fctx, op, update_match)
       local found = vs.select(entmap, args)
       local ent = vs.getelem(found, 0)
-      if ent == nil and type(entmap) == "table" then
-        for _, e in pairs(entmap) do
-          if type(e) == "table" then ent = e; break end
-        end
-      end
       if ent == nil then
+        -- update miss: 404, never another record
         return respond(404, nil, { statusText = "Not found" })
       end
-      if type(ent) == "table" then
-        local reqdata = fctx.reqdata
-        if reqdata ~= nil then
-          for k, v in pairs(reqdata) do
-            ent[k] = v
-          end
-        end
+      if type(ent) == "table" and type(fctx.reqdata) == "table" then
+        vs.merge({ ent, record(fctx.reqdata) })
       end
       vs.delprop(ent, "$KEY")
       local out = vs.clone(ent)
@@ -208,7 +232,7 @@ function TestFeature:init(ctx, options)
           math.random(0, 0xFFFF), math.random(0, 0xFFFF))
       end
 
-      local ent = vs.clone(fctx.reqdata)
+      local ent = vs.clone(record(fctx.reqdata))
       if type(ent) == "table" then
         ent["id"] = id
         if type(id) == "string" then
@@ -312,12 +336,39 @@ function TestFeature:make_netsim(net, inner)
 end
 
 
+local function point_terminal(p)
+  local parts = vs.getprop(p, "parts")
+  if type(parts) ~= "table" or #parts == 0 then return false end
+  local last = parts[#parts]
+  return type(last) == "string" and last:sub(1, 1) == "{"
+end
+
+local function point_depth(p)
+  local parts = vs.getprop(p, "parts")
+  return type(parts) == "table" and #parts or 0
+end
+
+-- The entity's own endpoint: a terminal `{param}` marks a record route, and
+-- among equals the shallower path wins (the same rule as make_point).
+local function pick_point(points)
+  if type(points) ~= "table" or #points == 0 then return nil end
+  local point = points[1]
+  for i = 2, #points do
+    local cand = points[i]
+    if point_terminal(cand) ~= point_terminal(point) then
+      if point_terminal(cand) then point = cand end
+    elseif point_depth(cand) < point_depth(point) then
+      point = cand
+    end
+  end
+  return point
+end
+
 function TestFeature:build_args(ctx, op, args)
   local opname = op.name
 
-  -- Get last point from config.
   local points = vs.getpath(ctx.config, "entity." .. ctx.entity:get_name() .. ".op." .. opname .. ".points")
-  local point = vs.getelem(points, -1)
+  local point = pick_point(points)
 
   -- Path AND query: a path-only read misses a query-addressed record
   -- (e.g. GET /result?trace_id=), which has no path param at all.

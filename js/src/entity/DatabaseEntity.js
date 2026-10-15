@@ -24,7 +24,7 @@ class DatabaseEntity extends NotionEntityBase {
   /**
    * @param {DatabaseLoadMatch} [reqmatch]
    * @param {Object} [ctrl]
-   * @returns {Promise<Database>}
+   * @returns {Promise<DatabaseEntity>}
    */
   async load(reqmatch, ctrl) {
 
@@ -129,9 +129,15 @@ class DatabaseEntity extends NotionEntityBase {
       return (ctx.result && ctx.result.ok) ? this : out
     }
     catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected')
-      if (fres instanceof Promise) { await fres }
+        fres = featureHook(ctx, 'PreUnexpected')
+        if (fres instanceof Promise) { await fres }
+      }
+      catch (hookerr) {
+        err = hookerr
+      }
 
       err = this._unexpected(ctx, err)
 
@@ -150,7 +156,7 @@ class DatabaseEntity extends NotionEntityBase {
   /**
    * @param {DatabaseCreateData} [reqdata]
    * @param {Object} [ctrl]
-   * @returns {Promise<Database>}
+   * @returns {Promise<DatabaseEntity>}
    */
   async create(reqdata, ctrl) {
 
@@ -250,9 +256,15 @@ class DatabaseEntity extends NotionEntityBase {
       return (ctx.result && ctx.result.ok) ? this : out
     }
     catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected')
-      if (fres instanceof Promise) { await fres }
+        fres = featureHook(ctx, 'PreUnexpected')
+        if (fres instanceof Promise) { await fres }
+      }
+      catch (hookerr) {
+        err = hookerr
+      }
 
       err = this._unexpected(ctx, err)
 
@@ -270,7 +282,7 @@ class DatabaseEntity extends NotionEntityBase {
   /**
    * @param {DatabaseUpdateData} [reqdata]
    * @param {Object} [ctrl]
-   * @returns {Promise<Database>}
+   * @returns {Promise<DatabaseEntity>}
    */
   async update(reqdata, ctrl) {
 
@@ -376,9 +388,15 @@ class DatabaseEntity extends NotionEntityBase {
       return (ctx.result && ctx.result.ok) ? this : out
     }
     catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected')
-      if (fres instanceof Promise) { await fres }
+        fres = featureHook(ctx, 'PreUnexpected')
+        if (fres instanceof Promise) { await fres }
+      }
+      catch (hookerr) {
+        err = hookerr
+      }
 
       err = this._unexpected(ctx, err)
 
@@ -390,6 +408,7 @@ class DatabaseEntity extends NotionEntityBase {
       }
     }
   }
+
 
 
 

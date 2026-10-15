@@ -9,7 +9,7 @@ import { createLiveTransport } from '../../live-runner'
 import { runLiveEntity } from '../../live-entity'
 
 
-import { NotionSDK, BaseFeature, stdutil } from '../../..'
+import { NotionSDK, BaseFeature, config, stdutil } from '../../..'
 
 import {
   envOverride,
@@ -25,10 +25,6 @@ import {
 } from '../../utility'
 
 
-// AFTER the imports on purpose: TypeScript hoists `import` above any
-// statement in the emitted CommonJS, so a loader placed above them would
-// run only after every imported module had already been evaluated - and
-// anything reading process.env at module scope would miss these values.
 loadEnvLocal(__dirname + '/../../../.env.local')
 
 
@@ -45,6 +41,18 @@ describe('DatabaseEntity', async () => {
   })
 
 
+  test('validate', async (t) => {
+    if (null == (config as any).feature?.validate) {
+      t.skip('feature not present in this SDK: validate')
+      return
+    }
+    const client = NotionSDK.test(undefined, { feature: { validate: { active: true } } })
+    await assert.rejects(client.Database().load({"id":1} as any),
+      (err: any) => 'validate_failed' === err.code)
+  })
+
+
+
   test('basic', async (t) => {
 
     const live = 'TRUE' === process.env.NOTION_TEST_LIVE
@@ -55,7 +63,7 @@ describe('DatabaseEntity', async () => {
     
     const setup = basicSetup()
     if (setup.live) {
-      return runLiveEntity(setup, {"active":true,"alias":{"field":{}},"fields":[{"active":true,"name":"created_time","req":false,"type":"`$STRING`","index$":0},{"active":true,"name":"id","req":false,"type":"`$STRING`","index$":1},{"active":true,"name":"last_edited_time","req":false,"type":"`$STRING`","index$":2},{"active":true,"name":"object","req":false,"type":"`$STRING`","index$":3},{"active":true,"name":"parent","op":{"create":{"req":true,"type":"`$OBJECT`"}},"req":false,"type":"`$OBJECT`","index$":4},{"active":true,"name":"properties","op":{"create":{"req":true,"type":"`$OBJECT`"}},"req":false,"type":"`$OBJECT`","index$":5},{"active":true,"name":"title","op":{"create":{"req":true,"type":"`$ARRAY`"}},"req":false,"type":"`$ARRAY`","index$":6}],"id":{"field":"id","name":"id"},"name":"database","op":{"create":{"input":"data","name":"create","points":[{"active":true,"args":{},"contract":{"id":"POST /databases","json":"{\"operationId\":\"createDatabase\",\"parameters\":[],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"parent\":{\"properties\":{\"page_id\":{\"type\":\"string\"}},\"type\":\"object\"},\"properties\":{\"type\":\"object\"},\"title\":{\"items\":{\"type\":\"object\"},\"type\":\"array\"}},\"required\":[\"parent\",\"title\",\"properties\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"created_time\":{\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"last_edited_time\":{\"type\":\"string\"},\"object\":{\"type\":\"string\"},\"parent\":{\"properties\":{\"page_id\":{\"type\":\"string\"}},\"type\":\"object\"},\"properties\":{\"type\":\"object\"},\"title\":{\"items\":{\"type\":\"object\"},\"type\":\"array\"}},\"type\":\"object\"}}},\"description\":\"The created database\"}},\"security\":[{\"bearerAuth\":[]}],\"securitySchemes\":{\"bearerAuth\":{\"scheme\":\"bearer\",\"type\":\"http\"}},\"securitySource\":\"definition\"}","source":"openapi3","version":1},"kind":"http","method":"POST","orig":"/databases","segments":[{"lit":"databases"}],"select":{},"transform":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"create"},"load":{"input":"data","name":"load","points":[{"active":true,"args":{"params":[{"active":true,"kind":"param","name":"id","orig":"id","reqd":true,"type":"`$STRING`","index$":0}]},"contract":{"id":"GET /databases/{id}","json":"{\"operationId\":\"getDatabase\",\"parameters\":[{\"in\":\"path\",\"name\":\"id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"created_time\":{\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"last_edited_time\":{\"type\":\"string\"},\"object\":{\"type\":\"string\"},\"parent\":{\"properties\":{\"page_id\":{\"type\":\"string\"}},\"type\":\"object\"},\"properties\":{\"type\":\"object\"},\"title\":{\"items\":{\"type\":\"object\"},\"type\":\"array\"}},\"type\":\"object\"}}},\"description\":\"The requested database\"}},\"security\":[{\"bearerAuth\":[]}],\"securitySchemes\":{\"bearerAuth\":{\"scheme\":\"bearer\",\"type\":\"http\"}},\"securitySource\":\"definition\"}","source":"openapi3","version":1},"kind":"http","method":"GET","orig":"/databases/{id}","segments":[{"lit":"databases"},{"var":"id"}],"select":{"exist":["id"]},"transform":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"load"},"update":{"input":"data","name":"update","points":[{"active":true,"args":{"params":[{"active":true,"kind":"param","name":"id","orig":"id","reqd":true,"type":"`$STRING`","index$":0}]},"contract":{"id":"PATCH /databases/{id}","json":"{\"operationId\":\"updateDatabase\",\"parameters\":[{\"in\":\"path\",\"name\":\"id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"properties\":{\"type\":\"object\"},\"title\":{\"items\":{\"type\":\"object\"},\"type\":\"array\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"created_time\":{\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"last_edited_time\":{\"type\":\"string\"},\"object\":{\"type\":\"string\"},\"parent\":{\"properties\":{\"page_id\":{\"type\":\"string\"}},\"type\":\"object\"},\"properties\":{\"type\":\"object\"},\"title\":{\"items\":{\"type\":\"object\"},\"type\":\"array\"}},\"type\":\"object\"}}},\"description\":\"The updated database\"}},\"security\":[{\"bearerAuth\":[]}],\"securitySchemes\":{\"bearerAuth\":{\"scheme\":\"bearer\",\"type\":\"http\"}},\"securitySource\":\"definition\"}","source":"openapi3","version":1},"kind":"http","method":"PATCH","orig":"/databases/{id}","segments":[{"lit":"databases"},{"var":"id"}],"select":{"exist":["id"]},"transform":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"update"}},"relations":{"ancestors":[]},"key$":"database","name__orig":"database","Name":"Database","name_":"database","name-":"database","NAME":"DATABASE","index$":0}, {"active":true,"entity":"database","key$":"BasicDatabaseFlow","kind":"basic","name":"BasicDatabaseFlow","param":{},"step":[{"active":true,"data":{},"input":{"ref":"database_ref01"},"match":{},"op":"create","spec":[],"valid":[],"index$":0},{"active":true,"data":{},"input":{"ref":"database_ref01","srcdatavar":"database_ref01_data","suffix":"_up0","textfield":"created_time"},"match":{},"op":"update","spec":[{"apply":"TextFieldMark","def":{"mark":"Mark01-database_ref01"}}],"valid":[],"index$":1},{"active":true,"data":{},"input":{"ref":"database_ref01","srcdatavar":"database_ref01_data","suffix":"_dt0"},"match":{"id":"database01"},"op":"load","spec":[],"valid":[{"apply":"TextFieldMark","def":{"mark":"Mark01-database_ref01"}}],"index$":2}]}, 'Database')
+      return runLiveEntity(setup, {"active":true,"alias":{"field":{}},"fields":{"created_time":{"a":true,"h":"Created Time","n":"created_time","r":false,"t":"`$STRING`","key$":"created_time","index$":0},"id":{"a":true,"h":"Id","n":"id","r":false,"t":"`$STRING`","key$":"id","index$":1},"last_edited_time":{"a":true,"h":"Last Edited Time","n":"last_edited_time","r":false,"t":"`$STRING`","key$":"last_edited_time","index$":2},"object":{"a":true,"h":"Object","n":"object","r":false,"t":"`$STRING`","key$":"object","index$":3},"parent":{"a":true,"h":"Parent","n":"parent","op":{"create":{"req":true,"type":"`$OBJECT`"}},"r":false,"t":"`$OBJECT`","key$":"parent","index$":4},"properties":{"a":true,"h":"Properties","n":"properties","op":{"create":{"req":true,"type":"`$OBJECT`"}},"r":false,"t":"`$OBJECT`","key$":"properties","index$":5},"title":{"a":true,"h":"Title","n":"title","op":{"create":{"req":true,"type":"`$ARRAY`"}},"r":false,"t":"`$ARRAY`","key$":"title","index$":6}},"id":{"field":"id","name":"id"},"name":"database","op":{"create":{"input":"data","name":"create","points":[{"a":true,"bf":["parent","properties","title"],"co":{"id":"POST /databases","source":"openapi3","version":2},"g":{},"k":"http","m":"POST","o":"/databases","q":{},"r":{},"rs":{"kind":"json","media":"application/json"},"s":[{"lit":"databases"}],"t":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"create"},"load":{"input":"data","name":"load","points":[{"a":true,"co":{"id":"GET /databases/{id}","source":"openapi3","version":2},"g":{"params":[{"a":true,"k":"param","n":"id","or":"id","r":true,"t":"`$STRING`","index$":0}]},"k":"http","m":"GET","o":"/databases/{id}","q":{"exist":["id"]},"r":{},"rs":{"kind":"json","media":"application/json"},"s":[{"lit":"databases"},{"var":"id"}],"t":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"load"},"update":{"input":"data","name":"update","points":[{"a":true,"bf":["properties","title"],"co":{"id":"PATCH /databases/{id}","source":"openapi3","version":2},"g":{"params":[{"a":true,"k":"param","n":"id","or":"id","r":true,"t":"`$STRING`","index$":0}]},"k":"http","m":"PATCH","o":"/databases/{id}","q":{"exist":["id"]},"r":{},"rs":{"kind":"json","media":"application/json"},"s":[{"lit":"databases"},{"var":"id"}],"t":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"update"}},"relations":{"ancestors":[]},"key$":"database","name__orig":"database","Name":"Database","name_":"database","name-":"database","NAME":"DATABASE","index$":0}, {"active":true,"entity":"database","key$":"BasicDatabaseFlow","kind":"basic","name":"BasicDatabaseFlow","param":{},"step":[{"a":true,"d":{},"i":{"ref":"database_ref01"},"m":{},"o":"create","s":[],"v":[],"index$":0},{"a":true,"d":{},"i":{"ref":"database_ref01","srcdatavar":"database_ref01_data","suffix":"_up0","textfield":"created_time"},"m":{},"o":"update","s":[{"apply":"TextFieldMark","def":{"mark":"Mark01-database_ref01"}}],"v":[],"index$":1},{"a":true,"d":{},"i":{"ref":"database_ref01","srcdatavar":"database_ref01_data","suffix":"_dt0"},"m":{"id":"database01"},"o":"load","s":[],"v":[{"apply":"TextFieldMark","def":{"mark":"Mark01-database_ref01"}}],"index$":2}]}, 'Database', {"POST /databases":{"protocol":"http","requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","required":["parent","title","properties"],"properties":{"parent":{"type":"object","properties":{"page_id":{"type":"string"}},"key$":"parent"},"title":{"type":"array","items":{"type":"object"},"key$":"title"},"properties":{"type":"object","key$":"properties"}},"x-ref":"#/components/schemas/DatabaseInput","index$":1}}}},"parameters":[]},"GET /databases/{id}":{"protocol":"http","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"},"index$":0}]},"PATCH /databases/{id}":{"protocol":"http","requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","properties":{"title":{"type":"array","items":{"type":"object"},"key$":"title"},"properties":{"type":"object","key$":"properties"}},"x-ref":"#/components/schemas/DatabaseUpdateInput","index$":1}}}},"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"},"index$":0}]}}, { strict: LIVE_STRICT, t })
     }
     const client = setup.client
     const struct = setup.struct
@@ -96,6 +104,12 @@ describe('DatabaseEntity', async () => {
 })
 
 
+
+// main.kit.test.live.strict is true (the default is true): a live
+// request that fails, or a live test missing an input it needs,
+// fails the test.
+// An account with no record for a test to read skips it either way.
+const LIVE_STRICT = true
 
 function basicSetup(extra?: any) {
   // TODO: fix test def options

@@ -7,9 +7,9 @@ import { cmp, each, Folder, entityCollection,
   TestControl } from '@voxgig/sdkgen'
 
 
-// import { Quick } from './Quick_ts'
-// import { TestMain } from './TestMain_ts'
 import { TestLive } from './TestLive_ts'
+import { TestDefinition } from './TestDefinition_ts'
+import { TestClean } from './TestClean_ts'
 import { TestDirect } from './TestDirect_ts'
 import { TestEntity } from './TestEntity_ts'
 import { ReadmeExampleTest } from './ReadmeExampleTest_ts'
@@ -25,8 +25,8 @@ const Test = cmp(function Test(props: any) {
     // Write-once: a project's edited control file survives regeneration.
     TestControl({ target, dir: 'test' })
     TestLive({ target })
-    // Quick({ target })
-    // TestMain({ target })
+    TestDefinition({ target })
+    TestClean({ target })
 
     ReadmeExampleTest({ target })
     ReadmeExamplesTest({ target })

@@ -14,6 +14,10 @@ import {
   packageVersion,
   authorInfo,
   targetFeatures, envName,
+  hasLiveScenarios,
+  npmScriptRm,
+  npmScriptEnv,
+  npmScriptTestSome,
 } from '@voxgig/sdkgen'
 
 
@@ -44,14 +48,11 @@ const Package = cmp(async function Package(props: any) {
   const only = (kind: string, deps: any) =>
     omap(deps, ([k, v]: any) => [v.active && kind === v.kind ? k : undefined, v.version])
 
-  // merge target and feature deps, by kind
   const deps =
     each(feature, (feature: any) =>
       omap(feature.deps?.[target.name], ([k, v]: any) =>
         [v.active ? k : undefined, v]))
 
-      // TODO: sort by version; rules for version choice?
-      // TODO: non-node dep kinds
       .reduce((a: any, deps: any) => (each(deps, (dep: any) =>
         a[dep.kind][dep.key$] = dep.version), a),
         {
@@ -64,8 +65,6 @@ const Package = cmp(async function Package(props: any) {
   const { repoUrl, issuesUrl } = repoInfo(model)
 
   const pkg = {
-    // The ts target publishes the canonical scoped npm name; the js target
-    // appends `-js` so the two never collide on npm.
     name: packageName(model, target.name),
     version: packageVersion(model, target.name),
     description: pkgDescription(model, target.name),
@@ -78,24 +77,23 @@ const Package = cmp(async function Package(props: any) {
 
     // What actually ships. Without `files`, `npm publish` packs the test
     // suite and the build scaffolding too. The js target runs from `src`
-    // directly (no build step), so that is the whole package.
-    files: ['src'],
+    // directly (no build step), so that and the docs are the whole package.
+    files: ['src', 'README.md', 'REFERENCE.md'],
     scripts: {
-      ...(Object.values(model.main.kit.entity || {}).some((e: any) => Object.values(e.op || {}).some((o: any) => (o.points || []).some((p: any) => p.contract && JSON.parse(p.contract.json).live))) ? {
-        'test:live': `${envName(model)}_TEST_LIVE=TRUE node --test test/live.test.js`,
+      ...(hasLiveScenarios(model) ? {
+        'test:live': 'node ' + npmScriptEnv(envName(model) + '_TEST_LIVE', 'TRUE') +
+          ' --test test/live.test.js',
       } : {}),
 
-      'test': 'node --test \'test/**/*.test.js\'',
-      'test-some': 'node --experimental-test-isolation=none ' +
-        '--test-name-pattern=\"$TEST_PATTERN\" --test \'test/**/*.test.js\'',
-      'test-utility': 'node --test test/utility/*.test.js',
+      'test': 'node --test "test/**/*.test.js"',
+      'test-some': npmScriptTestSome(['--experimental-test-isolation=none'], 'test/**/*.test.js'),
+      'test-utility': 'node --test "test/utility/*.test.js"',
 
-      "clean": "rm -rf node_modules yarn.lock package-lock.json",
+      "clean": npmScriptRm(['node_modules', 'yarn.lock', 'package-lock.json']),
       "reset": "npm run clean && npm i && npm test",
     },
     author,
 
-    // TODO: needs to be config
     license: 'MIT',
 
     dependencies: deps.prod,

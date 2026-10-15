@@ -8,6 +8,9 @@ const { inspect } = require('node:util')
 
 const { config } = require('./Config')
 const { Utility } = require('./utility/Utility')
+const { unreadableBody } = require('./utility/ResultBodyUtility')
+const { abortError } = require('./utility/MakeRequestUtility')
+const { allowed } = require('./utility/PrepareMethodUtility')
 const { NotionEntityBase } = require('./NotionEntityBase')
 
 
@@ -37,6 +40,15 @@ class NotionSDK {
     })
 
     this._options = this._utility.makeOptions(this._rootctx)
+
+    // Each can hold a credential; feature state a resolved or bought one.
+    // toJSON and inspect already leave them out; a spread or a structured
+    // logger walking own properties must too.
+    for (const key of ['_options', '_rootctx', '_features']) {
+      Object.defineProperty(this, key, {
+        value: this[key], enumerable: false, writable: true, configurable: true
+      })
+    }
 
     const struct = this._utility.struct
     const getpath = struct.getpath
@@ -120,6 +132,12 @@ class NotionSDK {
     }, this._rootctx)
 
     const options = this._options
+    const method = String(fetchargs.method || 'GET').toUpperCase()
+
+    if (!allowed(options.allow.method, method)) {
+      return ctx.error('spec_method_allow', 'Method "' + method +
+        '" not allowed by SDK option allow.method value: "' + options.allow.method + '"')
+    }
 
     // Build spec directly from SDK options + user-provided fetch args.
     const spec = {
@@ -127,7 +145,7 @@ class NotionSDK {
       prefix: options.prefix,
       suffix: options.suffix,
       path: fetchargs.path || '',
-      method: fetchargs.method || 'GET',
+      method,
       params: fetchargs.params || {},
       query: fetchargs.query || {},
       headers: prepareHeaders(ctx),
@@ -161,7 +179,7 @@ class NotionSDK {
   // Blocking it means denying BOTH the 'direct' and 'graphql' tokens, since
   // either one reaches the same endpoint.
   async direct(fetchargs) {
-    if (!this._options.allow.op.includes('direct')) {
+    if (!allowed(this._options.allow.op, 'direct')) {
       return {
         ok: false,
         err: new Error('NotionSDK: direct: operation not allowed by' +
@@ -185,7 +203,7 @@ class NotionSDK {
 
     const fetchdef = await this.prepare(fetchargs)
     if (fetchdef instanceof Error) {
-      return fetchdef
+      return { ok: false, err: utility.clean(this._rootctx, fetchdef) }
     }
 
     let ctx = makeContext({
@@ -194,13 +212,17 @@ class NotionSDK {
     }, this._rootctx)
 
     try {
+      if (true === fetchdef.signal?.aborted) {
+        throw fetchdef.signal.reason
+      }
+
       const fetched = await fetcher(ctx, fetchdef.url, fetchdef)
 
       if (null == fetched) {
         return { ok: false, err: ctx.error('direct_no_response', 'response: undefined') }
       }
       else if (fetched instanceof Error) {
-        return { ok: false, err: fetched }
+        return { ok: false, err: utility.clean(ctx, abortError(ctx, fetched)) }
       }
 
       const status = fetched.status
@@ -215,26 +237,41 @@ class NotionSDK {
       const noBody = 204 === status || 304 === status || '0' === String(contentLength)
 
       let json = undefined
+      let err = undefined
       if (!noBody) {
+        let text = undefined
         try {
-          json = 'function' === typeof fetched.json ? await fetched.json() : fetched.json
+          const raw = fetched
+          if ('function' === typeof raw.text) {
+            text = await raw.text()
+            json = '' === text.trim() ? undefined : JSON.parse(text)
+          }
+          else {
+            json = 'function' === typeof fetched.json ? await fetched.json() : fetched.json
+          }
         }
         catch (parseErr) {
-          // Body wasn't valid JSON — surface the raw response rather than
-          // throwing. data stays undefined; callers can inspect status/headers.
-          json = undefined
+          if ('SyntaxError' !== parseErr?.name) {
+            throw parseErr
+          }
+          err = unreadableBody(ctx, {
+            status, headers, text: text ?? parseErr.text, sent: fetchdef.headers,
+            failed: 200 <= status && status < 300 ? undefined :
+              ctx.error('request_status', 'request: ' + status + ': ' + fetched.statusText),
+          })
         }
       }
 
       return {
-        ok: status >= 200 && status < 300,
+        ok: null == err && status >= 200 && status < 300,
         status,
         headers: fetched.headers,
         data: json,
+        ...(null == err ? {} : { err: utility.clean(ctx, err) }),
       }
     }
     catch (err) {
-      return { ok: false, err }
+      return { ok: false, err: utility.clean(ctx, abortError(ctx, err)) }
     }
   }
 
@@ -255,7 +292,7 @@ class NotionSDK {
   async graphql(query, variables, ctrl) {
     const options = this._options
 
-    if (!options.allow.op.includes('graphql')) {
+    if (!allowed(options.allow.op, 'graphql')) {
       return {
         ok: false,
         err: new Error('NotionSDK: graphql: operation not allowed by' +
@@ -269,10 +306,6 @@ class NotionSDK {
       body: { query, variables: variables || {} },
       ctrl,
     })
-
-    if (res instanceof Error) {
-      return res
-    }
 
     // Errors are read BEFORE any status check: a GraphQL parse or validation
     // failure comes back as HTTP 400 carrying the standard { errors: [...] }
@@ -370,3 +403,39 @@ module.exports = {
   SDK,
 }
 
+
+
+// Station self-registration (voxgig/station design §6.2, path 1): linking
+// this package is the whole bootstrap. When the station library is
+// installed beside this SDK, the {construct, config} factory pair is
+// registered under the api slug (config.main.slug, the descriptor slug) at
+// module init, so `station.sdk('<name>')` needs no imports in application
+// code. Registration is SOFT — the station library is a peer dependency of
+// the station feature, and a project without it skips registration and
+// gets exactly the SDK it always had. Only a genuine module-not-found is
+// swallowed: a station that RESOLVES but throws while loading must
+// propagate (a silently empty factory table has no visible cause), and so
+// must station_factory_conflict — two different builds of one SDK in one
+// process is not a thing to pick between quietly.
+let stationInstalled = true
+try { require.resolve("@voxgig/station-js") }
+catch (err) {
+  // MODULE_NOT_FOUND is the absent case. Anything else - an invalid
+  // package config, a root entry the package does not export - is a
+  // real failure to load a station that IS installed, and swallowing
+  // it would leave an empty factory table with no visible cause.
+  if ('MODULE_NOT_FOUND' !== (err && err.code)) { throw err }
+  stationInstalled = false
+}
+
+if (stationInstalled) {
+  const { provide } = require("@voxgig/station-js")
+  // A station library predating the factory table has no provide() —
+  // there is nothing to register with, which is not this SDK's error.
+  if ('function' === typeof provide) {
+    provide(config.main.slug, {
+      construct: (options) => new NotionSDK(options),
+      config,
+    })
+  }
+}

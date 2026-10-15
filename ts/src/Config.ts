@@ -6,6 +6,7 @@ import { MetricsFeature } from './feature/metrics/MetricsFeature'
 import { PagingFeature } from './feature/paging/PagingFeature'
 import { RatelimitFeature } from './feature/ratelimit/RatelimitFeature'
 import { RetryFeature } from './feature/retry/RetryFeature'
+import { StationFeature } from './feature/station/StationFeature'
 import { TestFeature } from './feature/test/TestFeature'
 import { TimeoutFeature } from './feature/timeout/TimeoutFeature'
 
@@ -18,18 +19,13 @@ const FEATURE_CLASS: Record<string, typeof BaseFeature> = {
  paging: PagingFeature,
  ratelimit: RatelimitFeature,
  retry: RetryFeature,
+ station: StationFeature,
  test: TestFeature,
  timeout: TimeoutFeature,
 
 }
 
 
-// Per-feature plugin DEFINITIONS (voxgig/plugin `Definition` values), from
-// the model's active plugin groups. A feature that takes a `plugins` option
-// (secrets over sekreto) reads its own entry; a feature with no plugins has
-// none. Named imports above make each definition statically reachable, so
-// an SDK carries exactly the plugin modules its model selects — the same
-// leanness the old side-effect registry imports bought, without a registry.
 const FEATURE_PLUGINS: Record<string, any[]> = {
   
 }
@@ -40,7 +36,6 @@ class Config {
   makeFeature(this: any, fn: string) {
     const fc = FEATURE_CLASS[fn]
     const fi = new fc()
-    // TODO: errors etc
     return fi
   }
 
@@ -169,6 +164,21 @@ class Config {
       "strict": false,
       "transport": "wrap"
     },
+ station:     {
+      "options": {
+        "active": false,
+        "capture": "meta",
+        "fromEnv": true,
+        "instance": "",
+        "profile": "",
+        "register": true,
+        "secret": "",
+        "url": ""
+      },
+      "optspec": {},
+      "strict": false,
+      "transport": "wrap"
+    },
  test:     {
       "options": {
         "active": false
@@ -187,6 +197,7 @@ class Config {
       },
       "optspec": {
         "clearTimer": "`$FUNCTION`",
+        "now": "`$FUNCTION`",
         "setTimer": "`$FUNCTION`"
       },
       "strict": false,
@@ -224,49 +235,56 @@ class Config {
       "fields": [
         {
           "name": "created_time",
+          "title": "Created Time",
           "type": "`$STRING`"
         },
         {
           "name": "id",
+          "title": "Id",
           "type": "`$STRING`"
         },
         {
           "name": "last_edited_time",
+          "title": "Last Edited Time",
           "type": "`$STRING`"
         },
         {
           "name": "object",
+          "title": "Object",
           "type": "`$STRING`"
         },
         {
           "name": "parent",
+          "title": "Parent",
+          "type": "`$OBJECT`",
           "op": {
             "create": {
               "req": true,
               "type": "`$OBJECT`"
             }
-          },
-          "type": "`$OBJECT`"
+          }
         },
         {
           "name": "properties",
+          "title": "Properties",
+          "type": "`$OBJECT`",
           "op": {
             "create": {
               "req": true,
               "type": "`$OBJECT`"
             }
-          },
-          "type": "`$OBJECT`"
+          }
         },
         {
           "name": "title",
+          "title": "Title",
+          "type": "`$ARRAY`",
           "op": {
             "create": {
               "req": true,
               "type": "`$ARRAY`"
             }
-          },
-          "type": "`$ARRAY`"
+          }
         }
       ],
       "id": {
@@ -280,7 +298,6 @@ class Config {
           "name": "create",
           "points": [
             {
-              "args": {},
               "kind": "http",
               "method": "POST",
               "orig": "/databases",
@@ -289,14 +306,20 @@ class Config {
                   "lit": "databases"
                 }
               ],
-              "select": {},
+              "parts": [
+                "databases"
+              ],
+              "rename": {},
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
               },
-              "parts": [
-                "databases"
-              ]
+              "args": {},
+              "select": {},
+              "response": {
+                "kind": "json",
+                "media": "application/json"
+              }
             }
           ]
         },
@@ -305,17 +328,6 @@ class Config {
           "name": "load",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
               "kind": "http",
               "method": "GET",
               "orig": "/databases/{id}",
@@ -327,19 +339,35 @@ class Config {
                   "var": "id"
                 }
               ],
+              "parts": [
+                "databases",
+                "{id}"
+              ],
+              "rename": {},
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
               "select": {
                 "exist": [
                   "id"
                 ]
               },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
-              "parts": [
-                "databases",
-                "{id}"
-              ]
+              "response": {
+                "kind": "json",
+                "media": "application/json"
+              }
             }
           ]
         },
@@ -348,17 +376,6 @@ class Config {
           "name": "update",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
               "kind": "http",
               "method": "PATCH",
               "orig": "/databases/{id}",
@@ -370,19 +387,35 @@ class Config {
                   "var": "id"
                 }
               ],
+              "parts": [
+                "databases",
+                "{id}"
+              ],
+              "rename": {},
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
               "select": {
                 "exist": [
                   "id"
                 ]
               },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
-              "parts": [
-                "databases",
-                "{id}"
-              ]
+              "response": {
+                "kind": "json",
+                "media": "application/json"
+              }
             }
           ]
         }
@@ -395,43 +428,50 @@ class Config {
       "fields": [
         {
           "name": "archived",
+          "title": "Archived",
           "type": "`$BOOLEAN`"
         },
         {
           "name": "created_time",
+          "title": "Created Time",
           "type": "`$STRING`"
         },
         {
           "name": "id",
+          "title": "Id",
           "type": "`$STRING`"
         },
         {
           "name": "last_edited_time",
+          "title": "Last Edited Time",
           "type": "`$STRING`"
         },
         {
           "name": "object",
+          "title": "Object",
           "type": "`$STRING`"
         },
         {
           "name": "parent",
+          "title": "Parent",
+          "type": "`$OBJECT`",
           "op": {
             "create": {
               "req": true,
               "type": "`$OBJECT`"
             }
-          },
-          "type": "`$OBJECT`"
+          }
         },
         {
           "name": "properties",
+          "title": "Properties",
+          "type": "`$OBJECT`",
           "op": {
             "create": {
               "req": true,
               "type": "`$OBJECT`"
             }
-          },
-          "type": "`$OBJECT`"
+          }
         }
       ],
       "id": {
@@ -445,7 +485,6 @@ class Config {
           "name": "create",
           "points": [
             {
-              "args": {},
               "kind": "http",
               "method": "POST",
               "orig": "/pages",
@@ -454,14 +493,20 @@ class Config {
                   "lit": "pages"
                 }
               ],
-              "select": {},
+              "parts": [
+                "pages"
+              ],
+              "rename": {},
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
               },
-              "parts": [
-                "pages"
-              ]
+              "args": {},
+              "select": {},
+              "response": {
+                "kind": "json",
+                "media": "application/json"
+              }
             }
           ]
         },
@@ -470,17 +515,6 @@ class Config {
           "name": "load",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
               "kind": "http",
               "method": "GET",
               "orig": "/pages/{id}",
@@ -492,19 +526,35 @@ class Config {
                   "var": "id"
                 }
               ],
+              "parts": [
+                "pages",
+                "{id}"
+              ],
+              "rename": {},
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
               "select": {
                 "exist": [
                   "id"
                 ]
               },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
-              "parts": [
-                "pages",
-                "{id}"
-              ]
+              "response": {
+                "kind": "json",
+                "media": "application/json"
+              }
             }
           ]
         },
@@ -513,17 +563,6 @@ class Config {
           "name": "update",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
               "kind": "http",
               "method": "PATCH",
               "orig": "/pages/{id}",
@@ -535,19 +574,35 @@ class Config {
                   "var": "id"
                 }
               ],
+              "parts": [
+                "pages",
+                "{id}"
+              ],
+              "rename": {},
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
               "select": {
                 "exist": [
                   "id"
                 ]
               },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
-              "parts": [
-                "pages",
-                "{id}"
-              ]
+              "response": {
+                "kind": "json",
+                "media": "application/json"
+              }
             }
           ]
         }

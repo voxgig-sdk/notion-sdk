@@ -12,6 +12,32 @@ class NotionTestFeature extends NotionBaseFeature
     private ?array $options;
     private int $_netcalls;
 
+    // The record the mock keeps: the request data without `$body`, which only the
+    // wire carries.
+    private static function record(mixed $reqdata): array
+    {
+        if (!is_array($reqdata)) {
+            return [];
+        }
+        unset($reqdata['$body']);
+        return $reqdata;
+    }
+
+    // The key a list's response transform
+    // ["`$EACH`", "body", ["`$MERGE`" => "`.<key>`"]] reads each item's record under.
+    private static function itemEnvelopeKey(mixed $restf): ?string
+    {
+        if (!is_array($restf) || !array_is_list($restf) || 3 !== count($restf) ||
+            '`$EACH`' !== $restf[0] || 'body' !== $restf[1] || !is_array($restf[2])) {
+            return null;
+        }
+        $merge = $restf[2]['`$MERGE`'] ?? null;
+        if (!is_string($merge) || !preg_match('/^`\.([^.`$]+)`$/', $merge, $m)) {
+            return null;
+        }
+        return $m[1];
+    }
+
     public function __construct()
     {
         parent::__construct();
@@ -35,8 +61,8 @@ class NotionTestFeature extends NotionBaseFeature
 
         $this->client->mode = 'test';
 
-        // Ensure entity ids are correct.
-        \Voxgig\Struct\Struct::walk($entity_data, function ($key, $val, $parent, $path) {
+        // Ensure entity ids are correct (walk is by value: keep its result).
+        $entity_data = \Voxgig\Struct\Struct::walk($entity_data, function ($key, $val, $parent, $path) {
             if (count($path) === 2 && is_array($val) && $key !== null) {
                 $val['id'] = $key;
             }
@@ -66,6 +92,10 @@ class NotionTestFeature extends NotionBaseFeature
                     return $data;
                 }
                 $restf = $transform['res'] ?? null;
+                $key = self::itemEnvelopeKey($restf);
+                if ($key !== null && is_array($data) && array_is_list($data)) {
+                    return array_map(fn($item) => [$key => $item], $data);
+                }
                 if (!is_string($restf)) {
                     return $data;
                 }
@@ -103,9 +133,8 @@ class NotionTestFeature extends NotionBaseFeature
 
             // PHP-portable equivalent of TS buildArgs+select: a flat-key
             // filter that matches by exact-equality on each provided key,
-            // with alias fallback. Empty match matches all entries — load
-            // with empty match returns the first fixture entry (or last
-            // create), list returns all entries.
+            // with alias fallback. An empty match matches every entry, as an
+            // empty `$AND` does in select; a non-empty miss matches nothing.
             $find_first = function (array $entmap, $match, $alias) {
                 if (!is_array($match) || empty($match)) {
                     foreach ($entmap as $e) {
@@ -158,6 +187,23 @@ class NotionTestFeature extends NotionBaseFeature
 
             $alias = is_object($op) ? ($op->alias ?? null) : \Voxgig\Struct\Struct::getprop($op, 'alias');
 
+            // Every op filters through buildArgs, which keeps `id` and the
+            // point's required params and drops the rest. find_first/find_all
+            // take a flat map, so take the primary key of each $OR clause;
+            // they do their own alias fallback.
+            $query_match = function ($args) use ($fctx, $op) {
+                $flat = [];
+                foreach (($this->buildArgs($fctx, $op, $args)['$AND'] ?? []) as $clause) {
+                    $ors = $clause['$OR'] ?? [];
+                    if (is_array($ors) && count($ors) > 0 && is_array($ors[0])) {
+                        foreach ($ors[0] as $lk => $lv) {
+                            $flat[$lk] = $lv;
+                        }
+                    }
+                }
+                return $flat;
+            };
+
             // For single-entity ops (load, remove) with an empty explicit
             // match, fall back to the id the entity client already knows from a
             // prior create/load (carried in $fctx->match / $fctx->data). This
@@ -176,7 +222,7 @@ class NotionTestFeature extends NotionBaseFeature
             };
 
             if ($op->name === 'load') {
-                $ent = $find_first($entmap, $resolve_match($fctx->reqmatch), $alias);
+                $ent = $find_first($entmap, $query_match($resolve_match($fctx->reqmatch)), $alias);
                 if ($ent === null) {
                     return $respond(404, null, ['statusText' => 'Not found']);
                 }
@@ -185,37 +231,7 @@ class NotionTestFeature extends NotionBaseFeature
                 return $respond(200, $out);
 
             } elseif ($op->name === 'list') {
-                // FILTER THE MATCH THE WAY THE TS MOCK DOES.
-                //
-                // This branch used the whole of reqmatch, while load goes
-                // through resolve_match and the TS mock runs every op through
-                // buildArgs — which keeps `id` and the point's REQUIRED params
-                // and drops the rest. buildArgs is right here in this file and
-                // its docblock says it mirrors the TS one; list simply did not
-                // call it.
-                //
-                // So a match key that is neither `id` nor a required route
-                // param matched NOTHING in php and was IGNORED in ts. trello's
-                // board_star lists on `board_id`, which is not a field of that
-                // entity (id, pos, member_id, id_board) and not a route param:
-                // php returned an empty list and BoardStarEntityTest failed on
-                // an assertion that ts, js and every other port passed.
-                //
-                // buildArgs returns a struct query; find_all takes a flat map,
-                // so take the primary key of each $OR clause. find_all already
-                // does its own alias fallback, which is what the second $OR
-                // element carries.
-                $listargs = $this->buildArgs($fctx, $op, $fctx->reqmatch);
-                $listmatch = [];
-                foreach (($listargs['$AND'] ?? []) as $clause) {
-                    $ors = $clause['$OR'] ?? [];
-                    if (is_array($ors) && count($ors) > 0 && is_array($ors[0])) {
-                        foreach ($ors[0] as $lk => $lv) {
-                            $listmatch[$lk] = $lv;
-                        }
-                    }
-                }
-                $found = $find_all($entmap, $listmatch, $alias);
+                $found = $find_all($entmap, $query_match($fctx->reqmatch), $alias);
                 $cleaned = [];
                 foreach ($found as $e) {
                     if (is_array($e)) unset($e['$KEY']);
@@ -224,7 +240,7 @@ class NotionTestFeature extends NotionBaseFeature
                 $out = \Voxgig\Struct\Struct::clone($cleaned);
                 return $respond(200, $out);
 
-            } elseif ($op->name === 'update') {
+            } elseif ($op->name === 'update' || $op->name === 'patch') {
                 // Match the existing entity by id only (or its alias). reqdata
                 // also contains the new field values, which would otherwise
                 // cause find_first to filter out the entity we want to update.
@@ -245,14 +261,13 @@ class NotionTestFeature extends NotionBaseFeature
                 if (empty($update_match)) {
                     $update_match = $resolve_match([]);
                 }
-                $ent = $find_first($entmap, $update_match, $alias);
+                $ent = $find_first($entmap, $query_match($update_match), $alias);
                 if ($ent === null) {
+                    // update miss: 404, never another record
                     return $respond(404, null, ['statusText' => 'Not found']);
                 }
                 if (is_array($fctx->reqdata)) {
-                    foreach ($fctx->reqdata as $k => $v) {
-                        $ent[$k] = $v;
-                    }
+                    $ent = \Voxgig\Struct\Struct::merge([$ent, self::record($fctx->reqdata)]);
                 }
                 $id = is_array($ent) ? ($ent['id'] ?? null) : null;
                 if ($id !== null) {
@@ -264,7 +279,7 @@ class NotionTestFeature extends NotionBaseFeature
                 return $respond(200, $out);
 
             } elseif ($op->name === 'remove') {
-                $ent = $find_first($entmap, $resolve_match($fctx->reqmatch), $alias);
+                $ent = $find_first($entmap, $query_match($resolve_match($fctx->reqmatch)), $alias);
                 // Remove only the first matched entity. If nothing matches,
                 // succeed as a no-op rather than erroring.
                 $id = is_array($ent) ? ($ent['id'] ?? null) : null;
@@ -282,7 +297,7 @@ class NotionTestFeature extends NotionBaseFeature
                         random_int(0, 0xFFFF), random_int(0, 0xFFFF));
                 }
 
-                $ent = is_array($fctx->reqdata) ? $fctx->reqdata : [];
+                $ent = self::record($fctx->reqdata);
                 $ent['id'] = $id;
                 $entmap[$id] = $ent;
                 $entity->data[$entname] = $entmap;
@@ -377,7 +392,7 @@ class NotionTestFeature extends NotionBaseFeature
 
     /**
      * Build a structured `$AND` query from the request match/data dict,
-     * matching the TS test feature's buildArgs. Mirrors ts/src/feature/test/TestFeature.ts:158-204.
+     * matching the TS test feature's buildArgs in ts/src/feature/test/TestFeature.ts.
      *
      * For each key in $args that is 'id' OR a required-param key on the
      * current operation point, emit a `$OR` clause matching the key (and
@@ -394,12 +409,12 @@ class NotionTestFeature extends NotionBaseFeature
         }
 
         $opname = is_object($op) ? ($op->name ?? null) : (\Voxgig\Struct\Struct::getprop($op, 'name'));
-        $entityName = null;
-        if (isset($ctx->entity)) {
-            $entityName = is_object($ctx->entity)
-                ? ($ctx->entity->name ?? null)
-                : (is_array($ctx->entity) ? ($ctx->entity['name'] ?? null) : null);
-        }
+
+        // An entity keeps its name private, behind get_name(); a context
+        // with no entity has the name its operation was resolved for.
+        $entityName = (is_object($ctx->entity) && method_exists($ctx->entity, 'get_name'))
+            ? $ctx->entity->get_name()
+            : (is_object($op) ? ($op->entity ?? null) : \Voxgig\Struct\Struct::getprop($op, 'entity'));
 
         // Resolve required-param names from the op's last point. Defensive:
         // any missing piece falls back to "no required params".
@@ -412,8 +427,8 @@ class NotionTestFeature extends NotionBaseFeature
             // `{id}` marks a record route, and failing that the shallower
             // path wins.
             $points = \Voxgig\Struct\Struct::getpath(
-                ['entity', $entityName, 'op', $opname, 'points'],
-                $ctx->config
+                $ctx->config,
+                ['entity', $entityName, 'op', $opname, 'points']
             );
             $point = \Voxgig\Struct\Struct::getelem($points, 0);
             if (is_array($points)) {

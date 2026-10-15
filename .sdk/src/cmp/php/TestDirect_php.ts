@@ -15,9 +15,24 @@ import {
   serverVarEnv,
   serverVariables,
   pointParts,
+  liveStrict,
+  liveStrictNote,
 } from '@voxgig/sdkgen'
 
 import { formatPhpValue } from './utility_php'
+
+
+// Blocked without the ids its request needs, rather than sent with null.
+function liveKeysBlock(keys: string[], entidEnvVar: string): string {
+  return 0 === keys.length ? '' : `        if ($setup["live"]) {
+            foreach ([${keys.map((k) => JSON.stringify(k)).join(', ')}] as $_liveKey) {
+                if (null === ($setup["idmap"][$_liveKey] ?? null)) {
+                    Runner::live_miss(self::LIVE_STRICT, "Live test blocked: needs " . $_liveKey . " via ${entidEnvVar}");
+                }
+            }
+        }
+`
+}
 
 
 function normalizePathParams(
@@ -33,10 +48,10 @@ function normalizePathParams(
       // original name was renamed to another param's current name (e.g. badge
       // load: param 'group_id' has orig 'id', and another param has name 'id').
       const param = params.find((p: any) =>
-          p.name === snaked || p.name === depluralized) ||
+          p.n === snaked || p.n === depluralized) ||
         params.find((p: any) =>
-          p.orig === snaked || p.orig === depluralized)
-      if (param) return '{' + param.name + '}'
+          p.or === snaked || p.or === depluralized)
+      if (param) return '{' + param.n + '}'
 
       if (rename) {
         for (const [origCamel, renamedTo] of Object.entries(rename)) {
@@ -44,10 +59,10 @@ function normalizePathParams(
             const origSnaked = snakify(origCamel)
             const origDepluralized = depluralize(origSnaked)
             const renamedParam = params.find(
-              (p: any) => p.orig === origSnaked || p.name === origSnaked ||
-                p.orig === origDepluralized || p.name === origDepluralized
+              (p: any) => p.or === origSnaked || p.n === origSnaked ||
+                p.or === origDepluralized || p.n === origDepluralized
             )
-            if (renamedParam) return '{' + renamedParam.name + '}'
+            if (renamedParam) return '{' + renamedParam.n + '}'
           }
         }
       }
@@ -100,8 +115,8 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const listOp = entity.op?.list
 
   const loadPoint = loadOp?.points?.[0]
-  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.args?.params || [], loadPoint?.rename?.param) : ''
-  const allLoadParams = loadPoint?.args?.params || []
+  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) : ''
+  const allLoadParams = loadPoint?.g?.params || []
   // Some upstream OpenAPI specs declare a parameter as `in: path` even when
   // that path has no `{name}` placeholder for it. Only path params that
   // actually appear in the URL template should drive direct-test path-param
@@ -113,7 +128,7 @@ const TestDirect = cmp(function TestDirect(props: any) {
       _pathPlaceholders.add(part.slice(1, -1))
     }
   }
-  const _renameMap = (loadPoint?.rename?.param || {}) as Record<string, string>
+  const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
     _renamedPlaceholders.add(ph)
@@ -122,28 +137,32 @@ const TestDirect = cmp(function TestDirect(props: any) {
     }
   }
   const loadParams = allLoadParams.filter((p: any) =>
-    _renamedPlaceholders.has(p.name) || _renamedPlaceholders.has(p.orig))
+    _renamedPlaceholders.has(p.n) || _renamedPlaceholders.has(p.or))
 
   const listPoint = listOp?.points?.[0]
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.args?.params || [], listPoint?.rename?.param) : ''
-  const listParams = listPoint?.args?.params || []
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) : ''
+  const listParams = listPoint?.g?.params || []
 
   // Required query params with spec-provided examples — needed in live mode.
-  const loadQuery = loadPoint?.args?.query || []
+  const loadQuery = loadPoint?.g?.query || []
   const loadLiveQueryEntries = loadQuery
-    .filter((q: any) => q.reqd && undefined !== q.example && null !== q.example)
+    .filter((q: any) => q.r && undefined !== q.ex && null !== q.ex)
   const loadLiveQueryLines = loadLiveQueryEntries
-    .map((q: any) => `            $query["${q.name}"] = ${JSON.stringify(q.example)};`)
+    .map((q: any) => `            $query["${q.n}"] = ${JSON.stringify(q.ex)};`)
     .join('\n')
 
   const loadAllHaveExamples =
     loadParams.length > 0 &&
-    loadParams.every((p: any) => undefined !== p.example && null !== p.example)
+    loadParams.every((p: any) => undefined !== p.ex && null !== p.ex)
   const loadExampleLines = loadAllHaveExamples
-    ? loadParams.map((p: any) => `            $params["${p.name}"] = ${JSON.stringify(p.example)};`).join('\n')
+    ? loadParams.map((p: any) => `            $params["${p.n}"] = ${JSON.stringify(p.ex)};`).join('\n')
     : ''
 
   const entidEnvVar = `${PROJECTNAME}_TEST_${envToken(entity.name)}_ENTID`
+
+  // The *_ENTID key a live test reads a parameter's value from.
+  const liveKey = (param: any): string =>
+    ('id' === param.n ? entity.name : param.n.replace(/_id$/, '')) + '01'
 
   File({ name: entity.Name + 'DirectTest.' + target.ext }, () => {
 
@@ -159,25 +178,18 @@ use PHPUnit\\Framework\\TestCase;
 
 class ${entity.Name}DirectTest extends TestCase
 {
+${liveStrictNote(liveStrict(model, target.name), '//', '    ')}
+    private const LIVE_STRICT = ${liveStrict(model, target.name)};
+
+    private static function liveOk(array $result): bool
+    {
+        $status = Helpers::to_int($result["status"] ?? 0);
+        return empty($result["err"]) && !empty($result["ok"]) && $status >= 200 && $status < 300;
+    }
+
 `)
 
     if (hasList && listPoint) {
-      const listLiveIdKeys: string[] = listParams.map((lp: any) => {
-        return lp.name === 'id'
-          ? entity.name + '01'
-          : lp.name.replace(/_id$/, '') + '01'
-      })
-      const listSkipBlock = listLiveIdKeys.length > 0
-        ? `        if ($setup["live"]) {
-            foreach ([${listLiveIdKeys.map(k => `"${k}"`).join(', ')}] as $_liveKey) {
-                if (!isset($setup["idmap"][$_liveKey]) || $setup["idmap"][$_liveKey] === null) {
-                    $this->markTestSkipped("live test needs $_liveKey via *_ENTID env var (synthetic IDs only)");
-                    return;
-                }
-            }
-        }
-`
-        : ''
       Content(`    public function test_direct_list_${entity.name}(): void
     {
         $setup = ${entity.name}_direct_setup([
@@ -189,58 +201,28 @@ class ${entity.Name}DirectTest extends TestCase
             $this->markTestSkipped($_reason ?? "skipped via sdk-test-control.json");
             return;
         }
-${listSkipBlock}        $client = $setup["client"];
+${liveKeysBlock(listParams.map(liveKey), entidEnvVar)}        $client = $setup["client"];
 
+        $params = [];
 `)
-
-      if (listParams.length > 0) {
-        Content(`        $params = [];
+      listParams.forEach((lp: any, i: number) => {
+        Content(`        $params["${lp.n}"] = $setup["live"] ? ($setup["idmap"]["${liveKey(lp)}"] ?? null) : "direct0${i + 1}";
 `)
-        for (const lp of listParams) {
-          const key = lp.name === 'id'
-            ? entity.name + '01'
-            : lp.name.replace(/_id$/, '') + '01'
-          Content(`        if ($setup["live"]) {
-            $params["${lp.name}"] = $setup["idmap"]["${key}"];
-        } else {
-            $params["${lp.name}"] = "direct01";
-        }
-`)
-        }
-        Content(`
+      })
+      Content(`
         $result = $client->direct([
             "path" => "${listPath}",
             "method" => "GET",
             "params" => $params,
         ]);
-`)
-      } else {
-        Content(`
-        $result = $client->direct([
-            "path" => "${listPath}",
-            "method" => "GET",
-            "params" => [],
-        ]);
-`)
-      }
-
-      Content(`        if ($setup["live"]) {
-            // Live mode is lenient: synthetic IDs frequently 4xx and the
-            // list-response shape varies wildly across public APIs. Skip
-            // rather than fail when the call doesn't return a usable list.
-            if (!empty($result["err"])) {
-                $this->markTestSkipped("list call failed (likely synthetic IDs against live API): " . (string)$result["err"]);
-                return;
+        if ($setup["live"]) {
+            if (!self::liveOk($result)) {
+                Runner::live_miss(self::LIVE_STRICT, "Live list failed: " . Runner::live_describe($result));
             }
-            if (empty($result["ok"])) {
-                $this->markTestSkipped("list call not ok (likely synthetic IDs against live API)");
-                return;
+            if (null === Runner::live_list($result["data"] ?? null)) {
+                Runner::live_miss(self::LIVE_STRICT, "Live list returned no list: " . Runner::live_describe($result));
             }
-            $status = Helpers::to_int($result["status"]);
-            if ($status < 200 || $status >= 300) {
-                $this->markTestSkipped("expected 2xx status, got " . $status);
-                return;
-            }
+            $this->assertIsArray(Runner::live_list($result["data"]));
         } else {
             $this->assertArrayNotHasKey("err", $result);
             $this->assertTrue($result["ok"]);
@@ -255,15 +237,11 @@ ${listSkipBlock}        $client = $setup["client"];
     }
 
     if (hasLoad && loadPoint) {
-      // Skip live direct-load only when there's no way to fill path params:
-      // no spec examples and no list-bootstrap. Spec examples win first.
-      const loadSkipBlock = (loadParams.length > 0 && !loadAllHaveExamples)
-        ? `        if ($setup["live"]) {
-            $this->markTestSkipped("live direct-load needs real ID — set *_ENTID env var with real IDs to run");
-            return;
-        }
-`
-        : ''
+      const discover = !loadAllHaveExamples && hasList && 0 < loadParams.length
+      const idParam = loadParams.find((p: any) => 'id' === p.n)?.n ?? loadParams[0]?.n ?? 'id'
+      const loadLiveIdKeys: string[] = loadAllHaveExamples ? [] :
+        discover ? listParams.map(liveKey).concat(loadParams.filter((p: any) => idParam !== p.n).map(liveKey)) :
+          loadParams.map(liveKey)
       Content(`    public function test_direct_load_${entity.name}(): void
     {
         $setup = ${entity.name}_direct_setup(["id" => "direct01"]);
@@ -272,82 +250,71 @@ ${listSkipBlock}        $client = $setup["client"];
             $this->markTestSkipped($_reason ?? "skipped via sdk-test-control.json");
             return;
         }
-${loadSkipBlock}        $client = $setup["client"];
+${liveKeysBlock([...new Set(loadLiveIdKeys)], entidEnvVar)}        $client = $setup["client"];
 
-`)
-
-      const needsQuery = loadParams.length > 0 || loadLiveQueryLines !== ''
-      if (needsQuery) {
-        Content(`        $params = [];
+        $params = [];
         $query = [];
+        if ($setup["live"]) {
+${loadLiveQueryLines ? loadLiveQueryLines + '\n' : ''}`)
+      if (loadAllHaveExamples) {
+        Content(loadExampleLines + '\n')
+      }
+      else if (discover) {
+        Content(`            $list_result = $client->direct([
+                "path" => "${listPath}",
+                "method" => "GET",
+                "params" => [${listParams.map((p: any) => `"${p.n}" => $setup["idmap"]["${liveKey(p)}"] ?? null`).join(', ')}],
+            ]);
+            if (!self::liveOk($list_result)) {
+                Runner::live_miss(self::LIVE_STRICT, "Live list discovery failed: " . Runner::live_describe($list_result));
+            }
+            $records = Runner::live_list($list_result["data"] ?? null);
+            if (null === $records) {
+                Runner::live_miss(self::LIVE_STRICT, "Live list discovery returned no list: " . Runner::live_describe($list_result));
+            }
+            if (0 === count($records)) {
+                Runner::live_empty("The account has no ${entity.name} record to load");
+            }
+            $first = is_array($records[0]) ? $records[0] : [];
+            $found = $first["${idParam}"] ?? $first["id"] ?? null;
+            if (null === $found) {
+                Runner::live_miss(self::LIVE_STRICT, "Live load blocked: discovery returned no usable identity");
+            }
+            $params["${idParam}"] = $found;
 `)
-        if (loadAllHaveExamples) {
-          Content(`        if ($setup["live"]) {
-`)
-          if (loadLiveQueryLines) Content(loadLiveQueryLines + '\n')
-          Content(loadExampleLines + '\n')
-          Content(`        } else {
-`)
-          for (let i = 0; i < loadParams.length; i++) {
-            Content(`            $params["${loadParams[i].name}"] = "direct0${i + 1}";
-`)
-          }
-          Content(`        }
-`)
-        } else if (loadParams.length > 0) {
-          if (loadLiveQueryLines) {
-            Content(`        if ($setup["live"]) {
-${loadLiveQueryLines}
-        }
-`)
-          }
-          Content(`        if (!$setup["live"]) {
-`)
-          for (let i = 0; i < loadParams.length; i++) {
-            Content(`            $params["${loadParams[i].name}"] = "direct0${i + 1}";
-`)
-          }
-          Content(`        }
-`)
-        } else if (loadLiveQueryLines) {
-          Content(`        if ($setup["live"]) {
-${loadLiveQueryLines}
-        }
+        for (const p of loadParams.filter((p: any) => idParam !== p.n)) {
+          Content(`            $params["${p.n}"] = $setup["idmap"]["${liveKey(p)}"] ?? null;
 `)
         }
       }
+      else {
+        for (const p of loadParams) {
+          Content(`            $params["${p.n}"] = $setup["idmap"]["${liveKey(p)}"] ?? null;
+`)
+        }
+      }
+      Content(`        } else {
+`)
+      for (let i = 0; i < loadParams.length; i++) {
+        Content(`            $params["${loadParams[i].n}"] = "direct0${i + 1}";
+`)
+      }
+      Content(`        }
 
-      Content(`
         $result = $client->direct([
             "path" => "${loadPath}",
             "method" => "GET",
-`)
-      if (needsQuery) {
-        Content(`            "params" => $params,
+            "params" => $params,
             "query" => $query,
-`)
-      } else {
-        Content(`            "params" => [],
-`)
-      }
-      Content(`        ]);
+        ]);
         if ($setup["live"]) {
-            // Live mode is lenient: synthetic IDs frequently 4xx. Skip
-            // rather than fail when the load endpoint isn't reachable
-            // with the IDs we can construct from setup.idmap.
-            if (!empty($result["err"])) {
-                $this->markTestSkipped("load call failed (likely synthetic IDs against live API): " . (string)$result["err"]);
-                return;
+            if (!self::liveOk($result)) {
+                Runner::live_miss(self::LIVE_STRICT, "Live load failed: " . Runner::live_describe($result));
             }
-            if (empty($result["ok"])) {
-                $this->markTestSkipped("load call not ok (likely synthetic IDs against live API)");
-                return;
+            if (null === ($result["data"] ?? null)) {
+                Runner::live_miss(self::LIVE_STRICT, "Live load returned no data: " . Runner::live_describe($result));
             }
-            $status = Helpers::to_int($result["status"]);
-            if ($status < 200 || $status >= 300) {
-                $this->markTestSkipped("expected 2xx status, got " . $status);
-                return;
-            }
+            $this->assertNotNull($result["data"]);
         } else {
             $this->assertArrayNotHasKey("err", $result);
             $this->assertTrue($result["ok"]);
@@ -385,11 +352,12 @@ function ${entity.name}_direct_setup($mockres)
         $merged_opts = array_merge(Runner::live_client_options(), [${apikeyLiveField}${serverLiveField}
         ]);
         $client = new ${model.const.Name}SDK($merged_opts);
+        $idmap = $env["${entidEnvVar}"] ?? [];
         return [
             "client" => $client,
             "calls" => $calls,
             "live" => true,
-            "idmap" => [],
+            "idmap" => is_array($idmap) ? $idmap : [],
         ];
     }
 

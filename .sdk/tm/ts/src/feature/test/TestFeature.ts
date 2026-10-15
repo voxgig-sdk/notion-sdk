@@ -8,18 +8,21 @@ import { BaseFeature } from '../base/BaseFeature'
 const S_NOT_FOUND = 'Not found'
 
 
-// Which param is entity X's own identifier, as opposed to a parent key —
-// the load op's canonical point's LAST path segment, by construction (a
-// route addresses parents first, the record last). Mirrors recordKey in
-// sdkgen's Main_seneca-provider.ts; written again here because a template
-// ships standalone, outside that package. A renamed id (e.g. Airtable's
-// record_id) needs its own seeded field: matching only ever happens
-// against the API's real param names, never a bare 'id' the API itself
-// does not use.
+// The `%04x%04x%04x%04x` every other target mints, so the id's shape does not
+// depend on which language answered.
+function mintId(): string {
+  let out = ''
+  for (let i = 0; i < 4; i++) {
+    out += ((Math.random() * 0x10000) | 0).toString(16).padStart(4, '0')
+  }
+  return out
+}
+
+
 function ownIdField(config: any, getpath: any, entityName: string): string {
   let fallback = ''
 
-  for (const opname of ['load', 'remove', 'update']) {
+  for (const opname of ['load', 'remove', 'update', 'patch']) {
     const points = getpath(config, ['entity', entityName, 'op', opname, 'points']) || []
     const canonical = points.filter((pt: any) =>
       null == (pt && pt.select && pt.select['$action']))
@@ -32,17 +35,6 @@ function ownIdField(config: any, getpath: any, entityName: string): string {
       if (ptterm !== bestterm ? ptterm : pt.parts.length < best.parts.length) best = pt
     }
     const parts: string[] = (best && best.parts) || []
-    // THE LAST PART, not the last param anywhere in the path. A record route
-    // ENDS in its key: /orgs/{org}/private-registries/{secret_name} does,
-    // /orgs/{org}/private-registries/public-key does not. Reading the last
-    // param wherever it fell returned `{org}` for that second path — a PARENT
-    // reference — and the seeding walk then stamped the record's own key over
-    // org_id, destroying the ORG01 the fixture set and the test looks up from
-    // idmap. github's private_registry failed its update with a 404 that named
-    // nothing to do with orgs.
-    //
-    // A point that does not end in a param says nothing about this entity's
-    // key, so move on to the next op rather than guess from it.
     const lastPart = 0 < parts.length ? String(parts[parts.length - 1]) : ''
     if (lastPart.startsWith('{')) return lastPart.slice(1, -1)
 
@@ -66,28 +58,33 @@ function ownIdField(config: any, getpath: any, entityName: string): string {
     }
   }
 
-  // ONLY AFTER EVERY OP, because an op whose routes all end in a literal
-  // says nothing while another op may still name the key outright.
-  // github's `private_registry` reads
-  // `/orgs/{org}/private-registries/public-key` under `load` and writes
-  // `/orgs/{org}/private-registries/{secret_name}` under `update`:
-  // returning the load route's last parameter made the key `org`, and its
-  // update answered 404 for want of a registry named after an
-  // organisation.
-  //
-  // Reached at all only by an entity with no record-terminal route
-  // anywhere — github's `copilot` is read from
-  // `/orgs/{org_id}/members/{username}/copilot`, whose key is plainly
-  // `username`. Abstaining left the mock stamping no key on a created
-  // record while the provider addressed it by `username`, so the load
-  // straight after a create found nothing. The provider's recordKey has
-  // always used this fallback; matching it removes a disagreement rather
-  // than adding a guess.
   if ('' !== fallback) {
     return fallback
   }
 
   return 'id'
+}
+
+
+// The record the mock keeps: the request data without `$body`, which only the
+// wire carries.
+function recordOf(reqdata: any): any {
+  const out = { ...(reqdata || {}) }
+  delete out.$body
+  return out
+}
+
+
+// The key a list response wraps each record under, where the response
+// transform is `["`$EACH`", "body", { "`$MERGE`": "`.<key>`" }]`.
+function itemEnvelopeKey(restf: any): string | null {
+  if (!Array.isArray(restf) || 3 !== restf.length ||
+    '`$EACH`' !== restf[0] || 'body' !== restf[1]) {
+    return null
+  }
+  const merge = restf[2]?.['`$MERGE`']
+  const m = 'string' === typeof merge ? merge.match(/^`\.([^.`$]+)`$/) : null
+  return null == m ? null : m[1]
 }
 
 
@@ -141,22 +138,15 @@ class TestFeature extends BaseFeature {
       const delprop = struct.delprop
       const getdef = struct.getdef
 
-      // Shape the mock payload the way the real API would, so the op's
-      // response transform recovers the entity from it. A point carrying
-      // `transform.res: \`body.item\`` describes an API that answers
-      // `{item: {...}}`; handing back the bare entity means the transform
-      // unwraps a property that is not there and the caller gets undefined.
-      // The mock has to agree with the model, or it only ever simulates APIs
-      // whose responses happen to be unwrapped.
       function envelope(data: any) {
         const restf = getprop(getprop(ctx.point, 'transform', {}), 'res')
+        const itemkey = itemEnvelopeKey(restf)
+        if (null != itemkey && Array.isArray(data)) {
+          return data.map((item: any) => ({ [itemkey]: item }))
+        }
         if (null == data || 'string' !== typeof restf) {
           return data
         }
-        // Rebuild whatever nesting the op's response transform unwraps, so
-        // the mock agrees with the model. Multi-segment on purpose: GraphQL
-        // ops unwrap `body.data.<field>` (and `body.data.<field>.<entity>`
-        // for mutation payloads), not just a single envelope property.
         const m = restf.match(/^`body\.(.+)`$/)
         if (null == m) {
           return data
@@ -224,15 +214,16 @@ class TestFeature extends BaseFeature {
           return respond(200, out)
         }
       }
-      else if ('update' === op.name) {
-        const args = self.buildArgs(ctx, op, ctx.reqdata)
+      else if ('update' === op.name || 'patch' === op.name) {
+        const args = self.buildArgs(ctx, op, recordOf(ctx.reqdata))
         const found = select(entmap, args)
         const ent = getelem(found, 0)
         if (null == ent) {
+          // update miss: 404, never another record
           return respond(404, undefined, { statusText: S_NOT_FOUND })
         }
         else {
-          merge([ent, (ctx.reqdata || {})])
+          merge([ent, recordOf(ctx.reqdata)])
           delprop(ent, '$KEY')
           const out = clone(ent)
           return respond(200, out)
@@ -250,16 +241,13 @@ class TestFeature extends BaseFeature {
         return respond(200)
       }
       else if ('create' === op.name) {
-        const args = self.buildArgs(ctx, op, ctx.reqdata)
+        const args = self.buildArgs(ctx, op, recordOf(ctx.reqdata))
         let id = param(ctx, 'id')
         if (null == id) {
-          id = ((1e4 * Math.random() | 0).toString(16) +
-            (1e4 * Math.random() | 0).toString(16) +
-            (1e4 * Math.random() | 0).toString(16) +
-            (1e4 * Math.random() | 0).toString(16)).padEnd(16, '0')
+          id = mintId()
         }
 
-        const ent = clone(ctx.reqdata)
+        const ent = clone(recordOf(ctx.reqdata))
         setprop(ent, 'id', id)
 
         // A record created during the run needs the same real-key seeding
@@ -276,6 +264,8 @@ class TestFeature extends BaseFeature {
         const out = clone(ent)
         return respond(200, out)
       }
+
+      return respond(404, undefined, { statusText: 'Unknown operation' })
     }
 
     // Optional network behaviour simulation over the mock transport. Enable
@@ -304,10 +294,12 @@ class TestFeature extends BaseFeature {
       return max <= min ? min : min + ((max - min) >> 1)
     }
 
-    function sleep(ms: number): Promise<void> {
+    function sleep(ms: number, signal?: any): Promise<void> {
       if (null == ms || 0 >= ms) { return Promise.resolve() }
-      if ('function' === typeof net.sleep) { return Promise.resolve(net.sleep(ms)) }
-      return new Promise((r) => setTimeout(r, ms))
+      if ('function' === typeof net.sleep) { return self._untilAbort(Promise.resolve(net.sleep(ms)), signal) }
+      let timer: any
+      return self._untilAbort(new Promise((r) => { timer = setTimeout(r, ms) }), signal,
+        () => clearTimeout(timer))
     }
 
     return async function netsimFetcher(ctx: any, url: string, fetchdef: any) {
@@ -315,15 +307,15 @@ class TestFeature extends BaseFeature {
       const call = self._netcalls
 
       if (true === net.offline) {
-        await sleep(pickLatency())
+        await sleep(pickLatency(), fetchdef?.signal)
         return ctx.error('netsim_offline', 'Simulated network offline (URL was: "' + url + '")')
       }
       if (call <= (net.errorTimes | 0)) {
-        await sleep(pickLatency())
+        await sleep(pickLatency(), fetchdef?.signal)
         return ctx.error('netsim_conn', 'Simulated connection error (call ' + call + ')')
       }
       if (call <= (net.failTimes | 0)) {
-        await sleep(pickLatency())
+        await sleep(pickLatency(), fetchdef?.signal)
         const status = null == net.failStatus ? 503 : net.failStatus
         return {
           status,
@@ -333,7 +325,7 @@ class TestFeature extends BaseFeature {
           headers: { forEach(_cb: any) { }, get(_k: string) { return undefined } },
         }
       }
-      await sleep(pickLatency())
+      await sleep(pickLatency(), fetchdef?.signal)
       return inner(ctx, url, fetchdef)
     }
   }
@@ -390,20 +382,6 @@ class TestFeature extends BaseFeature {
     const qand: any[] = []
     const q = { '`$AND`': qand }
 
-    // WHERE A PATH PARAMETER'S VALUE ACTUALLY LIVES IN A RECORD.
-    //
-    // A request addresses a record by path parameter; a stored record carries
-    // whatever the API's response carries. Those are not always the same
-    // name, and are not always at the same depth: github addresses a repo by
-    // `{owner}/{repo}` and returns the owner as an OBJECT (`owner.login`)
-    // with the repository under `name`. Matching by parameter name alone
-    // found nothing for such a record, so a seeded composite record was
-    // unfindable and every read of it came back 404.
-    //
-    // `id.from` in the model says where each parameter is carried, as a
-    // dotted path. `select` matches a NESTED query shape but not a dotted
-    // key, so the path is expanded into one — `owner.login` becomes
-    // `{ owner: { login: value } }`.
     const idfrom = getpath(ctx.config, [
       'entity', getprop(ctx.entity, 'name'), 'id', 'from']) || {}
 
@@ -416,29 +394,6 @@ class TestFeature extends BaseFeature {
       return out
     }
 
-    // THE COMPOSITE PARTS FROM THE ENTITY MATCH TOO.
-    //
-    // A path parameter does not have to travel with the body. The seneca
-    // provider puts a composite record's parts in the ENTITY MATCH and
-    // leaves the body as the caller wrote it, because a path parameter is
-    // not a field — so `update`, which builds its query from `reqdata`,
-    // never looked at them. The query then matched every repo and
-    // `Repo({match:{owner,repo}}).update(...)` answered 404 while the same
-    // call with the parts in the body succeeded.
-    //
-    // EXACTLY THE PARTS, and only when nothing else addresses the record.
-    //
-    // Not every key the match holds: the match ACCRETES across calls on one
-    // entity instance, so after a create and an update it carries that
-    // record's parent scope as well — and the create branch below stamps the
-    // record's OWN key over the field it was seeded with, so a later read
-    // constrained on an accreted value finds nothing. Twenty-five of this
-    // SDK's own entity tests failed that way.
-    //
-    // And not when the call already carries an `id`: a direct id IS the
-    // address, and an accreted part then only narrows it wrongly — this
-    // SDK's own activity test updates `id: ACTIVITY00` on an entity whose
-    // match still holds the `repo` a previous list used.
     const match = ctx.match || {}
     const names: any[] = [...keysof(args)]
 
@@ -488,6 +443,7 @@ class TestFeature extends BaseFeature {
 export {
   TestFeature,
   ownIdField,
+  mintId,
 }
 
 

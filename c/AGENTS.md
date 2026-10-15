@@ -26,7 +26,7 @@ make test
 
 | Source | Path | Edit when… |
 | --- | --- | --- |
-| Target definition | `.sdk/model/target/c.aon` | deps, module, extension, phases change |
+| Target definition | `.sdk/model/target/c.aontu` | deps, module, extension, phases change |
 | Templates | `.sdk/tm/c/` | the file is the **same for every API** (runtime, transport, base classes) — copied verbatim with placeholder substitution |
 | Components | `.sdk/src/cmp/c/` | the file's shape **depends on the API** (entities, constructor, README, tests) — TypeScript that walks the model |
 
@@ -37,19 +37,20 @@ component.* After editing a component run `npm run build` before
 ## Features in this target
 
 Each feature is a flat file in the `feature/` package. Its hooks and
-default activation come from `.sdk/model/feature/<name>.aon`; customise
+default activation come from `.sdk/model/feature/<name>.aontu`; customise
 the runtime under `.sdk/tm/c/feature/` and regenerate.
 
 | Feature | Runtime file | Active hooks |
 | --- | --- | --- |
-| **debug** — Request/response capture ring buffer for debugging | `feature/debug_feature.c` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
-| **idempotency** — Idempotency keys for safe retries of mutating operations | `feature/idempotency_feature.c` | `PreRequest` |
-| **metrics** — Statistics capture: per-operation counters and latency | `feature/metrics_feature.c` | `PreDone`, `PrePoint`, `PreUnexpected` |
-| **paging** — Pagination signals for list operations | `feature/paging_feature.c` | `PreRequest`, `PreResult` |
-| **ratelimit** — Client-side rate limiting via a token bucket | `feature/ratelimit_feature.c` | — |
-| **retry** — Automatic retry of transient failures with exponential backoff | `feature/retry_feature.c` | — |
-| **test** — In-memory mock transport for testing without a live server | `feature/test_feature.c` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
-| **timeout** — Per-request timeout with transport abort | `feature/timeout_feature.c` | — |
+| **debug** — Debug capture | `feature/debug_feature.c` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
+| **idempotency** — Idempotency | `feature/idempotency_feature.c` | `PreRequest` |
+| **metrics** — Metrics | `feature/metrics_feature.c` | `PreDone`, `PrePoint`, `PreUnexpected` |
+| **paging** — Paging | `feature/paging_feature.c` | `PreRequest`, `PreResult` |
+| **ratelimit** — Rate limiting | `feature/ratelimit_feature.c` | — |
+| **retry** — Retry | `feature/retry_feature.c` | — |
+| **station** — Station control surface binding for outbound integrations | `feature/station_feature.c` | `PostConstruct`, `PreDone`, `PrePoint`, `PreUnexpected` |
+| **test** — Test transport | `feature/test_feature.c` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **timeout** — Timeout | `feature/timeout_feature.c` | — |
 
 ---
 
