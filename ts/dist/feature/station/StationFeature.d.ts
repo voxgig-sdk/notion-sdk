@@ -1,6 +1,6 @@
 import type { Context, FeatureOptions } from '../../types';
 import { BaseFeature } from '../base/BaseFeature';
-import { featureBinding } from '@voxgig/station';
+import type { featureBinding } from '@voxgig/station';
 declare class StationFeature extends BaseFeature {
     version: string;
     name: string;
